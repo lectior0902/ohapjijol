@@ -232,22 +232,27 @@ export function parkCombineCheck() {
   const sus = susById('park');
   const st = S.suspects.park;
   const I = sus.interrogation;
-  st.cause = st.partials.some(p => I.combine.causeIf.includes(p));
+  // 인정 범위: partial(P1·P2) < risk(P4: 위험 외면) < full(P3: 약물 투여). 사인의 자백 근거는 P3뿐.
+  const level = st.partials.includes('P3') ? 'full' : st.partials.includes('P4') ? 'risk' : 'partial';
+  const rank = { partial: 0, risk: 1, full: 2 };
+  const textOf = { partial: I.combine.partialText, risk: I.combine.riskText, full: I.combine.text };
+  st.cause = level === 'full';
   if (st.partials.length < I.combine.min) return;
+  const cur = st.level || (st.full ? 'full' : 'partial');
   if (!st.done) {
-    // 2개 이상 모이면 증언 카드. P3·P4가 없으면 메일 저지·현장 편집까지만 인정한다.
-    st.done = true; st.expr = '자백'; st.full = st.cause;
-    st.log.push({ kind: 'combine', a: st.full ? I.combine.text : I.combine.partialText });
+    st.done = true; st.expr = '자백'; st.level = level;
+    st.log.push({ kind: 'combine', a: textOf[level] });
     sfx.confess();
     addTestimony(I.result);
-    toast(st.full ? '증언 카드 확보: 박지영 전체 인정' : I.combine.partialToast, 3400);
-  } else if (st.cause && !st.full) {
-    st.full = true;
-    st.log.push({ kind: 'combine', a: I.combine.text });
+    toast(level === 'full' ? '증언 카드 확보: 박지영 전체 인정' : level === 'risk' ? '증언 카드 확보: 박지영 위험 방치 인정' : I.combine.partialToast, 3400);
+  } else if (rank[level] > rank[cur]) {
+    st.level = level;
+    st.log.push({ kind: 'combine', a: textOf[level] });
     sfx.confess();
-    memo('박지영 전체 인정: 약물 투여·위험 외면까지', 'testi');
-    toast(I.combine.fullToast, 3400);
+    memo(level === 'full' ? '박지영 전체 인정: 약물 투여까지' : '박지영 인정 범위 확대: 위험을 알고도 방치', 'testi');
+    toast(level === 'full' ? I.combine.fullToast : I.combine.riskToast, 3400);
   }
+  st.full = st.level === 'full';
 }
 
 function present(sus, ids) {

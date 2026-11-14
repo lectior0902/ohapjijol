@@ -7,9 +7,12 @@ const testimonyText = (id) => {
   const sus = G.data.suspects.find(s => s.interrogation.result === id);
   const I = sus.interrogation;
   if (I.mode !== 'partial') return I.resultText;
-  return S.suspects.park.full ? I.combine.text : I.combine.partialText;
+  const lv = parkLevel();
+  return lv === 'full' ? I.combine.text : lv === 'risk' ? I.combine.riskText : I.combine.partialText;
 };
-const parkFull = () => S.testimony.includes('C-park') && S.suspects.park.full;
+const parkLevel = () => S.suspects.park.level || (S.suspects.park.full ? 'full' : 'partial');
+const parkFull = () => S.testimony.includes('C-park') && parkLevel() === 'full';
+const parkRisk = () => S.testimony.includes('C-park') && parkLevel() !== 'partial';
 const outsideOf = (id) => ((evidenceById(id) || {}).proves || []).filter(p => p.outside).map(p => p.who);
 
 function evCard(id) {
@@ -19,7 +22,7 @@ function evCard(id) {
   return h('div', { class: 'ev-card' + (isT ? ' testimony' : '') + (ev.start ? ' start' : '') },
     h('div', { class: 'ev-head' },
       h('span', { class: 'ev-id' }, isT ? '증언' : id),
-      h('b', null, ev.title + (id === 'C-park' && !S.suspects.park.full ? ' (일부 인정)' : '')),
+      h('b', null, ev.title + (id === 'C-park' ? { partial: ' (일부 인정)', risk: ' (위험 방치 인정)', full: ' (전체 인정)' }[parkLevel()] : '')),
       S.marks[id] ? h('span', { class: 'mark' }, S.marks[id]) : null),
     h('div', { class: 'ev-desc' }, isT ? testimonyText(id) : ev.desc),
     tags.length ? h('div', { class: 'ev-tags' }, tags.map(t => h('span', { class: 'tag' }, t))) : null);
@@ -103,7 +106,10 @@ export function judge(D) {
   const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
   // ③a: 두 증거의 조합, 또는 전체 자백 카드 하나
   const aPick = [D.a1, D.a2].filter(Boolean);
-  const okA = F.aRule.pairs.some(p => same(p, aPick)) || (aPick.includes(F.aRule.fullTestimony) && parkFull());
+  const hasT = aPick.includes(F.aRule.testimony);
+  const okA = F.aRule.pairs.some(p => same(p, aPick))
+    || (hasT && parkFull())
+    || (hasT && parkRisk() && aPick.includes(F.aRule.riskWith));
   const okB = F.slots.find(s => s.id === 'b').valid.includes(D.b);
   // ③c: 서로 다른 세 증거가 모두 방 밖의 행위를 보이고, 합쳐서 세 사람을 모두 덮어야 한다
   const cPick = [D.c1, D.c2, D.c3];
