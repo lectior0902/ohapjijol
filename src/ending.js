@@ -138,9 +138,12 @@ export function endingView() {
 
   return h('div', { class: 'ending k-' + r.kind },
     h('div', { class: 'paper' },
+      h('div', { class: 'paper-top' }, h('span', null, '제18,204호'), h('span', null, '2026년 11월 14일 토요일'), h('span', null, e.section)),
       h('div', { class: 'masthead' }, '잠신일보'),
-      h('div', { class: 'edition' }, `11월 14일 (토) · ${e.section}`),
+      h('div', { class: 'edition' }, 'JAMSIN ILBO · 1판'),
       e.headline ? h('h1', { class: 'headline' }, e.headline) : h('div', { class: 'blank-slot' }, '(공란)'),
+      e.headline ? h('div', { class: 'paper-by' }, '디지털탐사팀') : null,
+      e.headline && r.kind === 'true' ? h('div', { class: 'paper-photo' }, h('span', null, '임주연 씨의 휴대전화. 잠금 해제 실패 기록이 남아 있다.')) : null,
       e.lead ? h('p', { class: 'lead' }, e.lead) : null,
       e.misjudge ? h('div', { class: 'misjudge' }, h('span', null, `오판: ${e.misjudge}`), h('span', null, `비판 대상: ${e.target}`)) : null),
     h('div', { class: 'ending-name' }, e.name),

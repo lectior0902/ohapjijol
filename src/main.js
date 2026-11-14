@@ -1,8 +1,8 @@
 // 진입점: 데이터 로드, 렌더 루프, 하단 네비
-import { G, S, app, loadData, save, resetGame } from './state.js';
+import { G, S, app, loadData, save, resetGame, remaining } from './state.js';
 import { h, toast, modal } from './ui.js';
 import { phoneView } from './phone.js';
-import { bookView, budgetPill } from './interview.js';
+import { bookView } from './interview.js';
 import { evidenceView, endingView } from './ending.js';
 import { checkTriggers, resumePending } from './events.js';
 
@@ -45,13 +45,25 @@ function nav() {
         }
         S.ui.tab = id; save(); render();
       },
-    }, h('span', { class: 'tab-icon' }, icon), h('span', null, name))));
+    }, h('span', { class: 'tab-icon' }, icon,
+        id === 'book' ? h('i', { class: 'tab-badge' + (remaining() <= 5 ? ' low' : '') }, remaining()) : null),
+      h('span', null, name))));
 }
+
+const SB_ICONS = '<svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>'
+  + '<svg width="15" height="11" viewBox="0 0 15 11"><path d="M7.5 2.2c2.2 0 4.2.8 5.7 2.2l1.2-1.3A10 10 0 0 0 7.5.4 10 10 0 0 0 .6 3.1l1.2 1.3a8.2 8.2 0 0 1 5.7-2.2Zm0 3.5c1.2 0 2.4.5 3.3 1.3l1.2-1.3a6.6 6.6 0 0 0-9 0L4.2 7a4.8 4.8 0 0 1 3.3-1.3Zm0 3.4L9.4 7.3a2.8 2.8 0 0 0-3.8 0Z"/></svg>'
+  + '<svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="12" height="8" rx="1.6"/><rect x="22.6" y="4" width="1.6" height="4" rx=".8" opacity=".45"/></svg>';
 
 function statusBar() {
   return h('div', { class: 'statusbar' },
-    h('span', null, G.data.meta.gameClock),
-    S.started && !S.ending ? budgetPill() : h('span'));
+    h('span', { class: 'sb-time' }, G.data.meta.gameClock),
+    h('span', { class: 'sb-icons', html: SB_ICONS }));
+}
+
+function isLightScreen() {
+  if (!S.started || S.ending || S.ui.tab !== 'phone' || !S.unlocked) return false;
+  const r = S.ui.phone || '';
+  return r === 'sms' || r === 'calls' || r.startsWith('sms:') || r === 'browser' || r.startsWith('article:');
 }
 
 export function render() {
@@ -71,6 +83,7 @@ export function render() {
   const showNav = S.started && !S.ending;
   document.getElementById('nav').replaceChildren(showNav ? nav() : '');
   document.getElementById('phone').classList.toggle('no-nav', !showNav);
+  document.getElementById('phone').classList.toggle('light-ui', isLightScreen());
   lastKey = key;
 }
 app.render = render;
@@ -93,6 +106,14 @@ async function boot() {
   }
   document.title = `${G.data.meta.title} — ${G.data.meta.subtitle}`;
   document.getElementById('menu-btn').addEventListener('click', menu);
+  let scrollTimer = null;
+  document.addEventListener('scroll', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    el.classList.add('scrolling');
+    clearTimeout(el._st);
+    el._st = setTimeout(() => el.classList.remove('scrolling'), 900);
+  }, true);
   render();
   resumePending();
   checkTriggers();

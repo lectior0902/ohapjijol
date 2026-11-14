@@ -1,12 +1,13 @@
-// 폰 화면: 잠금화면, 홈, 앱 6종
+// 폰 화면: 잠금화면, 홈, 앱 6종, 기사 페이지
 import { G, S, app, pin, addFlag, save } from './state.js';
 import { h } from './ui.js';
 
 const ME = '임주연';
-const go = (route) => { S.ui.phone = route; S.ui.scrollTop = 0; app.render(); };
+const fmtDay = (d) => { const p = d.split('-').map(Number); return p.length === 3 ? `${p[0]}년 ${p[1]}월 ${p[2]}일` : `${p[0]}월 ${p[1]}일`; };
+const go = (route) => { S.ui.phone = route; app.render(); };
 
-function header(title, back, extra) {
-  return h('div', { class: 'app-head' },
+function header(title, back, extra, cls = '') {
+  return h('div', { class: 'app-head ' + cls },
     back ? h('button', { class: 'back', onclick: () => go(back), 'aria-label': '뒤로' }, '‹') : h('span', { class: 'back-sp' }),
     h('div', { class: 'app-title' }, title),
     extra || h('span', { class: 'back-sp' }));
@@ -35,7 +36,7 @@ export function lockScreen() {
     entered += d;
     if (entered.length === 4) {
       if (entered === G.data.meta.passcode) {
-        S.unlocked = true; entered = '';
+        S.unlocked = true; entered = ''; S.ui.keypad = false;
         app.toast(L.unlockToast, 5200);
         save(); app.render();
       } else {
@@ -48,32 +49,44 @@ export function lockScreen() {
     }
     app.render();
   };
+  if (S.ui.keypad) {
+    return h('div', { class: 'lock keypad-mode' },
+      h('div', { class: 'keypad-wrap' },
+        h('div', { class: 'lock-ic' }, '🔒'),
+        h('div', { class: 'lock-prompt' }, '암호 입력'),
+        dots,
+        h('div', { class: 'lock-hint' }, hint),
+        h('div', { class: 'keypad' },
+          ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map(d =>
+            d === '' ? h('span') :
+            h('button', { class: 'key' + (d === 'del' ? ' del' : ''), onclick: () => press(d) }, d === 'del' ? '⌫' : d))),
+        h('button', { class: 'lock-cancel', onclick: () => { S.ui.keypad = false; entered = ''; app.render(); } }, '취소')));
+  }
   return h('div', { class: 'lock' },
-    h('div', { class: 'lock-clock' }, G.data.meta.gameClock),
-    h('div', { class: 'lock-date' }, G.data.meta.gameDate),
-    h('div', { class: 'lock-wall' }, L.wallpaperText),
+    h('div', { class: 'lock-top' },
+      h('div', { class: 'lock-ic' }, '🔒'),
+      h('div', { class: 'lock-date' }, G.data.meta.gameDate),
+      h('div', { class: 'lock-clock' }, G.data.meta.gameClock),
+      h('div', { class: 'lock-wall' }, L.wallpaperText)),
     h('div', { class: 'notif-stack' }, L.notifications.map(n =>
       h('div', { class: 'notif' + (n.strong ? ' strong' : '') },
-        h('div', { class: 'notif-top' }, h('b', null, n.app), h('span', null, n.ts)),
-        h('div', { class: 'notif-text' }, n.text)))),
-    h('div', { class: 'keypad-wrap' },
-      h('div', { class: 'lock-prompt' }, '암호 입력'),
-      dots,
-      h('div', { class: 'lock-hint' }, hint),
-      h('div', { class: 'keypad' },
-        ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map(d =>
-          d === '' ? h('span') :
-          h('button', { class: 'key', onclick: () => press(d) }, d === 'del' ? '⌫' : d)))));
+        h('span', { class: 'n-icon n-' + (NOTIF_IC[n.app] || ['', ''])[0] }, (NOTIF_IC[n.app] || ['', '•'])[1]),
+        h('div', { class: 'n-main' },
+          h('div', { class: 'notif-top' }, h('b', null, n.app), h('span', null, n.ts)),
+          h('div', { class: 'notif-text' }, n.text))))),
+    h('button', { class: 'unlock-hint', onclick: () => { S.ui.keypad = true; app.render(); } },
+      h('span', { class: 'bar' }), '눌러서 잠금 해제'));
 }
+const NOTIF_IC = { '전화': ['call', '✆'], '문자': ['msg', '💬'], '띵동캠': ['cam', '🔔'], '메일': ['mail', '✉'], '보안': ['sec', '🛡'] };
 
 // ───────── 홈 ─────────
 const APPS = [
-  { id: 'sms', name: '문자', icon: '💬', color: '#3ecf6e' },
-  { id: 'tg', name: '텔레그램', icon: '✈', color: '#2aa3e0' },
-  { id: 'notes', name: '메모', icon: '📝', color: '#f2c94c' },
-  { id: 'gallery', name: '갤러리', icon: '🖼', color: '#bb6bd9' },
-  { id: 'sns', name: 'SNS', icon: '◎', color: '#eb5757' },
-  { id: 'browser', name: '인터넷', icon: '🌐', color: '#5b8def' },
+  { id: 'sms', name: '메시지', icon: '💬', color: 'linear-gradient(#5fe07f,#25b44a)' },
+  { id: 'tg', name: '텔레그램', icon: '✈', color: 'linear-gradient(#45b6ee,#1f8fd1)' },
+  { id: 'notes', name: '메모', icon: '📝', color: 'linear-gradient(#ffe27a,#f2b705)' },
+  { id: 'gallery', name: '갤러리', icon: '🖼', color: 'linear-gradient(#d38cf0,#8f4fd8)' },
+  { id: 'sns', name: 'SNS', icon: '◎', color: 'linear-gradient(#ff7a85,#e0245e)' },
+  { id: 'browser', name: '인터넷', icon: '🌐', color: 'linear-gradient(#7aa7ff,#3a6fe0)' },
 ];
 
 export function home() {
@@ -88,7 +101,7 @@ export function home() {
         h('span', { class: 'icon-name' }, a.name)))));
 }
 
-// ───────── 문자 ─────────
+// ───────── 메시지(문자) ─────────
 function deliveredExtra() {
   const now = Date.now();
   return S.extraSms.filter(m => m.at <= now);
@@ -102,75 +115,83 @@ function smsThreads() {
   }
   return base;
 }
-function smsUnread() {
-  return deliveredExtra().filter(m => !m.read).length;
-}
+function smsUnread() { return deliveredExtra().filter(m => !m.read).length; }
 
 function bubble(m, opts = {}) {
   const mine = m.from === ME;
-  return h('div', { class: 'msg ' + (mine ? 'me' : 'them') + (m.sys ? ' sys' : '') },
-    !mine && opts.showName ? h('div', { class: 'msg-name' }, m.from) : null,
+  const color = opts.colors ? opts.colors[m.from] : null;
+  return h('div', { class: 'msg ' + (mine ? 'me' : 'them') },
+    !mine && opts.showName ? h('div', { class: 'msg-name', style: color ? `color:${color}` : null }, m.from) : null,
     m.image ? thumbnail(m.image) : null,
     m.text ? h('div', { class: 'msg-bubble' + (m.forward ? ' fwd' : '') }, m.text,
-      m.file ? h('div', { class: 'msg-file' }, '📎 ' + m.file) : null) : null,
-    h('div', { class: 'msg-ts' }, m.ts || ''));
+      m.file ? h('div', { class: 'msg-file' }, h('span', { class: 'file-ic' }, 'PDF'), m.file) : null,
+      opts.inlineTs && m.ts ? h('span', { class: 'in-ts' }, m.ts) : null) : null,
+    !opts.inlineTs && m.ts ? h('div', { class: 'msg-ts' }, m.ts) : null);
 }
 
 function thumbnail(img) {
   return h('div', { class: 'thumb' },
-    h('div', { class: 'thumb-title' }, img.title),
-    h('div', { class: 'thumb-mosaic' }),
-    h('div', { class: 'thumb-desc' }, img.desc),
-    h('div', { class: 'thumb-capture' }, h('span', null, '캡처 판독'), img.readout));
+    h('div', { class: 'thumb-img' },
+      h('div', { class: 'thumb-title' }, img.title),
+      h('div', { class: 'thumb-mosaic' }),
+      h('div', { class: 'thumb-capture' }, img.readout)),
+    h('div', { class: 'thumb-desc' }, img.desc + ' 모자이크 틈으로 한 줄이 읽힌다.'));
 }
 
 export function sms(route) {
   const threads = smsThreads();
   if (route === 'calls') {
-    return h('div', { class: 'app' },
-      header('통화 기록', 'sms'),
+    return h('div', { class: 'app light sms-app' },
+      header('최근 통화', 'sms', null, 'light'),
       h('div', { class: 'list' }, G.data.apps.sms.callLog.map(c =>
         h('div', { class: 'row call ' + (c.type === '부재중' ? 'missed' : '') },
+          h('span', { class: 'call-ic' }, c.type === '부재중' ? '↙' : c.type === '수신' ? '↙' : '↗'),
           h('div', { class: 'row-main' }, h('b', null, c.contact), h('span', { class: 'sub' }, c.type + (c.duration ? ` · ${c.duration}` : ''))),
           h('div', { class: 'row-ts' }, c.ts)))));
   }
   const m = route.match(/^sms:(\d+)$/);
   if (m) {
     const t = threads[+m[1]];
-    t.messages.forEach(x => { if (x.at) x.read = true; });
     S.extraSms.forEach(x => { if (x.contact === t.contact && x.at <= Date.now()) x.read = true; });
     save();
-    return h('div', { class: 'app' },
-      header(t.contact, 'sms'),
+    const out = [];
+    let day = null;
+    for (const x of t.messages) {
+      const dd = (x.ts || '').split(' ')[0];
+      if (dd !== day) { out.push(h('div', { class: 'day' }, fmtDay(dd))); day = dd; }
+      out.push(bubble({ ...x, ts: (x.ts || '').split(' ')[1] || '' }));
+    }
+    return h('div', { class: 'app light sms-app' },
+      header(t.contact, 'sms', null, 'light'),
       h('div', { class: 'chat' + (t.spam ? ' spam' : '') },
-        t.spam ? h('div', { class: 'spam-tag' }, '스팸으로 분류된 메시지') : null,
-        t.messages.map(x => bubble(x))),
+        t.spam ? h('div', { class: 'spam-tag' }, '⚠ 스팸으로 의심되는 메시지입니다') : null,
+        out),
       t.pinGroup ? pinBar(t.pinGroup) : null);
   }
-  return h('div', { class: 'app' },
-    header('문자', 'home', h('button', { class: 'head-btn', onclick: () => go('calls') }, '통화')),
+  return h('div', { class: 'app light sms-app' },
+    header('메시지', 'home', h('button', { class: 'head-btn', onclick: () => go('calls') }, '통화'), 'light'),
     h('div', { class: 'list' }, threads.map((t, i) => {
       const last = t.messages[t.messages.length - 1];
       const unread = t.messages.some(x => x.at && !x.read);
       return h('button', { class: 'row' + (unread ? ' unread' : ''), onclick: () => go('sms:' + i) },
+        h('span', { class: 'avatar' }, t.spam ? '!' : t.contact.slice(0, 1)),
         h('div', { class: 'row-main' }, h('b', null, t.contact), h('span', { class: 'sub' }, last.text)),
         h('div', { class: 'row-ts' }, last.ts));
     })));
 }
 
 // ───────── 텔레그램 ─────────
+const TG_COLORS = { '박지영': '#e3a96b', '전채은': '#7ee07e', '성지인': '#6ab3f3', '정가연': '#ee7aae', '임주연': '#ffffff' };
+
 function chatWithDays(messages, showName, { pinRuns = false } = {}) {
   const out = [];
   let day = null, ts = null, run = null;
   const flush = () => { if (run) { out.push(pinBar(run)); run = null; } };
   messages.forEach((m, i) => {
     if (pinRuns && (m.pin || null) !== run) flush();
-    if (m.d !== day || (m.ts && m.ts !== ts)) {
-      out.push(h('div', { class: 'day' }, m.d + (m.ts ? ' ' + m.ts : '')));
-      day = m.d; ts = m.ts;
-    }
+    if (m.d !== day) { out.push(h('div', { class: 'day' }, fmtDay(m.d))); day = m.d; ts = null; }
     if (m.sys) out.push(h('div', { class: 'sysline' }, m.sys));
-    else out.push(bubble({ ...m, ts: '' }, { showName }));
+    else out.push(bubble({ ...m, ts: m.ts || '' }, { showName, colors: TG_COLORS, inlineTs: true }));
     if (pinRuns && m.pin) run = m.pin;
     if (i === messages.length - 1) flush();
   });
@@ -182,34 +203,35 @@ export function telegram(route) {
   if (route === 'tg:g0') {
     const g = T.groups[0];
     return h('div', { class: 'app tg' },
-      header(g.name, 'tg'),
+      header(g.name, 'tg', h('span', { class: 'tg-members' }, `멤버 ${g.members.length}`), 'tg-head'),
       h('div', { class: 'chat' },
         h('div', { class: 'group-info' },
           h('div', null, g.desc),
-          h('div', { class: 'sub' }, `멤버 ${g.members.length}: ${g.members.join(', ')}`)),
+          h('div', { class: 'sub' }, g.members.join(' · '))),
         chatWithDays(g.messages, true, { pinRuns: true })));
   }
   const m = route.match(/^tg:dm(\d+)$/);
   if (m) {
     const dm = T.dms[+m[1]];
     return h('div', { class: 'app tg' },
-      header(dm.contact, 'tg'),
+      header(dm.contact, 'tg', h('span', { class: 'tg-members' }, '오래 전 접속'), 'tg-head'),
       h('div', { class: 'chat' }, chatWithDays(dm.messages, false)),
       dm.pinGroup ? pinBar(dm.pinGroup) : null);
   }
   const g = T.groups[0];
   const lastOf = (arr) => arr[arr.length - 1];
+  const preview = (x) => x.text ? x.text.split('\n')[0] : '사진';
   return h('div', { class: 'app tg' },
-    header('텔레그램', 'home'),
+    header('Telegram', 'home', null, 'tg-head'),
     h('div', { class: 'list' },
       h('button', { class: 'row', onclick: () => go('tg:g0') },
         h('span', { class: 'avatar grp' }, '五'),
-        h('div', { class: 'row-main' }, h('b', null, `[${g.name}]`), h('span', { class: 'sub' }, `${lastOf(g.messages).from}: ${lastOf(g.messages).text}`)),
-        h('div', { class: 'row-ts' }, lastOf(g.messages).d.slice(5))),
+        h('div', { class: 'row-main' }, h('b', null, g.name), h('span', { class: 'sub' }, h('span', { style: `color:${TG_COLORS[lastOf(g.messages).from]}` }, lastOf(g.messages).from + ': '), preview(lastOf(g.messages)))),
+        h('div', { class: 'row-ts' }, lastOf(g.messages).d.slice(5).replace('-', '/'))),
       T.dms.map((dm, i) => h('button', { class: 'row', onclick: () => go('tg:dm' + i) },
-        h('span', { class: 'avatar' }, dm.contact.slice(0, 1)),
-        h('div', { class: 'row-main' }, h('b', null, dm.contact), h('span', { class: 'sub' }, lastOf(dm.messages).text || '사진')),
-        h('div', { class: 'row-ts' }, lastOf(dm.messages).d.slice(5))))));
+        h('span', { class: 'avatar', style: `background:${TG_COLORS[dm.contact]}33;color:${TG_COLORS[dm.contact]}` }, dm.contact.slice(0, 1)),
+        h('div', { class: 'row-main' }, h('b', null, dm.contact), h('span', { class: 'sub' }, preview(lastOf(dm.messages)))),
+        h('div', { class: 'row-ts' }, lastOf(dm.messages).d.slice(5).replace('-', '/'))))));
 }
 
 // ───────── 메모 ─────────
@@ -220,7 +242,7 @@ export function notes(route) {
     const n = N[+m[1]];
     if (addFlag('note:' + n.title, true)) save();
     return h('div', { class: 'app notes' },
-      header('메모', 'notes'),
+      header('메모', 'notes', null, 'notes-head'),
       h('div', { class: 'note-page' },
         h('h2', null, n.title),
         h('div', { class: 'note-meta' }, `수정 ${n.updated}`),
@@ -228,7 +250,7 @@ export function notes(route) {
       n.pinGroup ? pinBar(n.pinGroup) : null);
   }
   return h('div', { class: 'app notes' },
-    header('메모', 'home'),
+    header('메모', 'home', null, 'notes-head'),
     h('div', { class: 'list' }, N.map((n, i) =>
       h('button', { class: 'row', onclick: () => go('notes:' + i) },
         h('div', { class: 'row-main' }, h('b', null, n.title), h('span', { class: 'sub' }, n.body.split('\n')[0])),
@@ -264,8 +286,10 @@ export function galleryArt(g) {
       return h('div', { class: 'art group' },
         h('div', { class: 'five' }, [0, 1, 2, 3, 4].map(i => h('span', { class: 'kid k' + i }))),
         h('div', { class: 'caption' }, g.caption));
-    case 'article':
-      return h('div', { class: 'art article' }, h('div', { class: 'press' }, '뉴스'), g.lines.map(l => h('div', { class: 'art-headline' }, l)));
+    case 'article': {
+      const a = articleById(g.article);
+      return h('div', { class: 'art shot' }, h('div', { class: 'shot-bar' }, '📶 ' + a.outlet), articleBody(a, true));
+    }
     case 'pill':
       return h('div', { class: 'art pill' }, g.lines.map(l => h('div', null, l)), h('div', { class: 'warn' }, g.warning));
   }
@@ -278,13 +302,13 @@ export function gallery(route) {
   if (m) {
     const g = items.find(x => x.id === m[1]);
     return h('div', { class: 'app gallery' },
-      header(`${g.album} · ${g.ts}`, 'gallery'),
+      header(`${g.album} · ${g.ts}`, 'gallery', null, 'gal-head'),
       h('div', { class: 'gal-view' }, h('div', { class: 'gal-title' }, g.title), galleryArt(g)),
       g.pinGroup ? pinBar(g.pinGroup) : null);
   }
   const albums = [...new Set(items.map(x => x.album))];
   return h('div', { class: 'app gallery' },
-    header('갤러리', 'home'),
+    header('갤러리', 'home', null, 'gal-head'),
     h('div', { class: 'gal-scroll' }, albums.map(a => [
       h('div', { class: 'album' }, a),
       h('div', { class: 'gal-grid' }, items.filter(x => x.album === a).map(g =>
@@ -295,21 +319,117 @@ export function gallery(route) {
 }
 
 // ───────── SNS ─────────
+function snsPrivate(acc) {
+  return h('div', { class: 'sns-x' },
+    h('div', { class: 'x-profile' },
+      h('div', { class: 'x-cover' }),
+      h('span', { class: 'x-avatar' }, '주'),
+      h('div', { class: 'x-name' }, acc.name, ' ', h('span', { class: 'lock-ic' }, '🔒')),
+      h('div', { class: 'sub' }, '@' + acc.account + ' · ' + acc.label)),
+    acc.posts.map(p => p.draft
+      ? h('div', { class: 'x-draft' },
+          h('div', { class: 'x-draft-tag' }, `임시저장 · ${p.ts}`),
+          h('div', { class: 'x-text' }, p.text),
+          h('div', { class: 'x-draft-btn' }, '게시하지 않음'))
+      : h('div', { class: 'x-post' },
+          h('span', { class: 'x-avatar sm' }, '주'),
+          h('div', { class: 'x-body' },
+            h('div', null, h('b', null, acc.name), h('span', { class: 'sub' }, ` @${acc.account} · ${p.ts}`)),
+            h('div', { class: 'x-text' }, p.text),
+            h('div', { class: 'x-actions' }, h('span', null, '💬 0'), h('span', null, '↻ 0'), h('span', null, `♡ ${p.likes}`))))));
+}
+
+function snsChannel(acc) {
+  return h('div', { class: 'sns-yt' },
+    h('div', { class: 'yt-banner' }, h('span', null, 'CHAE-ON')),
+    h('div', { class: 'yt-head' },
+      h('span', { class: 'yt-avatar' }, '채'),
+      h('div', null, h('div', { class: 'yt-name' }, acc.account), h('div', { class: 'sub' }, `${acc.handle} · ${acc.label}`)),
+      h('span', { class: 'yt-sub' }, '구독중')),
+    h('div', { class: 'yt-tabs' }, h('span', null, '홈'), h('span', null, '동영상'), h('span', { class: 'on' }, '커뮤니티')),
+    acc.posts.map(p => p.kind === 'community'
+      ? h('div', { class: 'yt-card' },
+          h('div', { class: 'yt-card-head' }, h('span', { class: 'yt-avatar sm' }, '채'), h('b', null, acc.account), h('span', { class: 'sub' }, ' · ' + p.ts)),
+          h('div', { class: 'yt-text' }, p.text),
+          h('div', { class: 'yt-actions' }, h('span', null, `👍 ${p.likes}`), h('span', null, '👎'), h('span', null, `💬 ${p.commentCount}`)),
+          h('div', { class: 'yt-comments' },
+            h('div', { class: 'sub' }, `댓글 ${p.commentCount}개 · 인기순`),
+            p.comments.map(c => h('div', { class: 'yt-comment' },
+              h('span', { class: 'c-avatar' }, c.user.slice(1, 2).toUpperCase()),
+              h('div', null,
+                h('div', { class: 'c-user' }, c.user, c.ts ? h('span', { class: 'sub' }, ' · ' + c.ts) : null),
+                h('div', null, c.text),
+                h('div', { class: 'sub' }, `👍 ${c.likes}`))))))
+      : h('div', { class: 'yt-video' },
+          h('div', { class: 'yt-thumb' + (p.titleChange ? ' red' : '') }, h('span', { class: 'yt-dur' }, p.titleChange ? '14:02' : '11:37')),
+          h('div', { class: 'yt-vinfo' },
+            p.titleChange
+              ? [h('div', { class: 'yt-vtitle' }, p.titleChange.to),
+                 h('div', { class: 'retitle' }, `제목 변경됨 (${p.titleChange.ts}) · 이전 제목: ${p.text}`)]
+              : h('div', { class: 'yt-vtitle' }, p.text),
+            h('div', { class: 'sub' }, `조회수 ${p.views} · ${p.ts}`),
+            p.note ? h('div', { class: 'sub' }, p.note) : null,
+            p.pinnedComment ? h('div', { class: 'yt-pinned' }, '📌 고정 댓글 · 채온: ' + p.pinnedComment) : null))));
+}
+
+function snsOfficial(acc) {
+  return h('div', { class: 'sns-off' },
+    h('div', { class: 'off-head' },
+      h('span', { class: 'off-logo' }, acc.account.slice(0, 1)),
+      h('div', null, h('div', { class: 'off-name' }, acc.account, h('span', { class: 'verified' }, '✔')), h('div', { class: 'sub' }, `${acc.handle} · ${acc.label}`))),
+    acc.posts.map(p => h('div', { class: 'off-post' },
+      h('div', { class: 'off-date' }, p.ts),
+      h('div', { class: 'off-title' }, p.title),
+      h('div', { class: 'off-text' }, p.text),
+      h('div', { class: 'sub' }, `♡ ${p.likes}`))));
+}
+
+function snsInsta(acc) {
+  return h('div', { class: 'sns-ig' },
+    h('div', { class: 'ig-head' },
+      h('span', { class: 'ig-avatar' }, '책'),
+      h('div', null, h('b', null, acc.account), h('div', { class: 'sub' }, acc.name + ' · ' + acc.label))),
+    acc.posts.map(p => h('div', { class: 'ig-post' },
+      h('div', { class: 'ig-img' }, h('div', { class: 'shutter' }), h('span', null, p.image)),
+      h('div', { class: 'ig-actions' }, '♡  💬  ➤'),
+      h('div', null, h('b', null, `좋아요 ${p.likes}개`)),
+      h('div', { class: 'ig-cap' }, h('b', null, acc.account + ' '), p.text),
+      h('div', { class: 'sub' }, p.ts))));
+}
+
 export function sns() {
-  return h('div', { class: 'app sns' },
-    header('SNS', 'home'),
-    h('div', { class: 'feed' }, G.data.apps.sns.map(acc =>
-      h('section', { class: 'acct' },
-        h('div', { class: 'acct-head' }, h('b', null, acc.account), h('span', { class: 'sub' }, acc.label)),
-        acc.posts.map(p => h('div', { class: 'post' + (p.draft ? ' draft' : '') },
-          h('div', { class: 'post-ts' }, (p.draft ? '[임시저장] ' : '') + (p.video ? '▶ 영상 · ' : '') + p.ts),
-          p.titleChange
-            ? h('div', { class: 'post-text' }, h('s', null, p.text), h('div', { class: 'retitle' }, `${p.titleChange.ts} 제목 변경 → ${p.titleChange.to}`))
-            : h('div', { class: 'post-text' }, p.text),
-          p.views ? h('div', { class: 'sub' }, `조회수 ${p.views}`) : null,
-          p.note ? h('div', { class: 'sub' }, p.note) : null,
-          p.pinnedComment ? h('div', { class: 'comment pinned' }, '📌 채온: ' + p.pinnedComment) : null,
-          p.comments ? h('div', { class: 'comments' }, p.comments.map(c => h('div', { class: 'comment' }, (c.ts ? c.ts + '  ' : '') + c.text))) : null))))));
+  const accs = G.data.apps.sns;
+  const i = Math.min(S.ui.snsAcc || 0, accs.length - 1);
+  const acc = accs[i];
+  const render = { private: snsPrivate, channel: snsChannel, official: snsOfficial, insta: snsInsta }[acc.style];
+  return h('div', { class: 'app sns sns-' + acc.style },
+    header('SNS', 'home', null, 'sns-head'),
+    h('div', { class: 'acc-tabs' }, accs.map((a, k) =>
+      h('button', { class: 'acc-tab' + (k === i ? ' on' : ''), onclick: () => { S.ui.snsAcc = k; app.render(); } }, a.name || a.account))),
+    render(acc));
+}
+
+// ───────── 기사 ─────────
+export const articleById = (id) => G.data.articles.find(a => a.id === id);
+
+export function articleBody(a, compact = false) {
+  return h('article', { class: 'news b-' + a.brand + (compact ? ' compact' : '') },
+    h('div', { class: 'news-mast' }, h('span', { class: 'news-logo' }, a.outlet), h('span', { class: 'news-menu' }, '☰')),
+    h('div', { class: 'news-sec' }, a.section),
+    h('h1', { class: 'news-title' }, a.title),
+    a.sub ? h('div', { class: 'news-sub' }, a.sub) : null,
+    h('div', { class: 'news-by' }, h('span', null, a.reporter), h('span', null, '입력 ' + a.date)),
+    a.photo && !compact ? h('figure', { class: 'news-photo' }, h('div', { class: 'ph' }), h('figcaption', null, a.photo)) : null,
+    (compact ? a.body.slice(0, 1) : a.body).map(p => h('p', null, p)),
+    a.footer && !compact ? h('div', { class: 'news-foot' }, a.footer) : null,
+    !compact ? h('div', { class: 'news-copy' }, `© ${a.outlet} 무단 전재 및 재배포 금지`) : null);
+}
+
+function articlePage(id) {
+  const a = articleById(id);
+  return h('div', { class: 'app light' },
+    header(a.outlet, S.ui.articleBack || 'browser', null, 'light'),
+    articleBody(a));
 }
 
 // ───────── 인터넷 ─────────
@@ -321,13 +441,18 @@ export function searchKeyword(q) {
   return G.data.apps.browser.keywords.find(k => k.match.some(m => nq.includes(norm(m)))) || null;
 }
 
+const TYPE_LABEL = { news: '뉴스', community: '커뮤니티', archive: '아카이브', ad: '광고', blog: '블로그', service: '서비스', info: '지식백과', company: '기업정보', site: '웹사이트', video: '동영상', channel: '채널', gen: '웹문서' };
+
 function resultCard(r) {
-  return h('div', { class: 'result r-' + r.type },
-    h('div', { class: 'r-src' }, r.source),
-    h('div', { class: 'r-title' }, r.title),
-    r.body ? h('div', { class: 'r-body' }, r.body) : null,
-    r.comments ? h('div', { class: 'comments' }, r.comments.map(c => h('div', { class: 'comment' }, '└ ' + c))) : null,
-    r.pin ? pinBar(r.pin) : null);
+  const art = r.article ? articleById(r.article) : null;
+  const open = art ? () => { S.ui.articleBack = 'browser'; go('article:' + art.id); } : null;
+  return h('div', { class: 'result r-' + r.type + (art ? ' link' : ''), onclick: open },
+    h('div', { class: 'r-src' }, h('span', { class: 'r-fav' }, (r.source || '·').slice(0, 1)), h('span', null, r.source), h('span', { class: 'r-type' }, TYPE_LABEL[r.type] || '')),
+    r.type === 'video' ? h('div', { class: 'r-video' }, h('div', { class: 'r-vthumb' }, '▶'), h('div', { class: 'r-title' }, r.title))
+      : h('div', { class: 'r-title' }, art ? art.title : r.title),
+    art ? h('div', { class: 'r-body' }, art.body[0]) : (r.body ? h('div', { class: 'r-body' }, r.body) : null),
+    r.comments ? h('div', { class: 'r-comments' }, r.comments.map(c => h('div', null, '└ ' + c))) : null,
+    r.pin ? h('div', { onclick: (e) => e.stopPropagation() }, pinBar(r.pin)) : null);
 }
 
 const KIM_FIRST = ['○○', '△△', '□□', '◇◇'];
@@ -337,10 +462,9 @@ const KIM_TITLE = [
   '김 변호사 상담 후기 (내돈내산)', '김□□ 법률사무소 개소', '김 모 변호사 “사실관계 다툴 것”', '김 변호사 Q&A — 명예훼손 고소 절차',
   '김◇◇ 변호사 칼럼', '김 씨 변호사 찾습니다 (지인 소개)', '김○○ 변호사 프로필', '김 변호사 유튜브 — 합의금의 모든 것',
 ];
-function kimMore(n, start) {
+function kimMore(n) {
   const out = [];
-  for (let i = 0; i < n; i++) {
-    const k = start + i;
+  for (let k = 0; k < n; k++) {
     out.push({ type: 'gen', source: KIM_KIND[k % KIM_KIND.length], title: KIM_TITLE[(k * 5) % KIM_TITLE.length].replace('○○', KIM_FIRST[k % 4]), body: '' });
   }
   return out;
@@ -349,11 +473,11 @@ function kimMore(n, start) {
 export function browser() {
   const B = G.data.apps.browser;
   const q = S.ui.browserQ || '';
-  const input = h('input', { class: 'search', type: 'search', value: q, placeholder: '검색어 입력', enterkeyhint: 'search' });
+  const input = h('input', { class: 'search', type: 'search', value: q, placeholder: '검색어를 입력하세요', enterkeyhint: 'search' });
   const doSearch = (text) => {
-    S.ui.browserQ = text; S.ui.kimMore = 0; S.ui.scrollTop = 0;
+    S.ui.browserQ = text; S.ui.kimMore = 0;
     const kw = searchKeyword(text);
-    if (kw) { addFlag('search:' + kw.id, true); }
+    if (kw) addFlag('search:' + kw.id, true);
     save(); app.afterChange(); app.render();
   };
   input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(input.value); });
@@ -361,29 +485,32 @@ export function browser() {
   let body;
   if (!q) {
     body = h('div', null,
-      h('div', { class: 'b-sec' }, '최근 검색'),
+      h('div', { class: 'portal-logo' }, h('span', null, 'Q'), 'uest'),
+      h('div', { class: 'b-sec' }, '최근 검색어'),
       B.recent.map(r => h('button', { class: 'row recent', onclick: () => doSearch(r.q) },
-        h('div', { class: 'row-main' }, h('span', null, '🕘 ' + r.q)), h('div', { class: 'row-ts' }, r.ts))),
+        h('div', { class: 'row-main' }, h('span', null, '🕘  ' + r.q)), h('div', { class: 'row-ts' }, r.ts))),
       S.keywords.length ? h('div', { class: 'b-sec' }, '취재 수첩 키워드') : null,
-      h('div', { class: 'chips' }, S.keywords.map(k => h('button', { class: 'chip', onclick: () => doSearch(k) }, k))));
+      h('div', { class: 'chips' }, S.keywords.map(k => h('button', { class: 'chip', onclick: () => doSearch(k) }, '# ' + k))));
   } else {
     const kw = searchKeyword(q);
-    if (!kw) body = h('div', { class: 'noresult' }, B.noResultText);
+    if (!kw) body = h('div', { class: 'noresult' }, h('div', { class: 'nr-big' }, `‘${q}’`), B.noResultText);
     else {
-      const extra = kw.endless ? kimMore((S.ui.kimMore || 0) * 12, 0) : [];
+      const extra = kw.endless ? kimMore((S.ui.kimMore || 0) * 12) : [];
       body = h('div', null,
+        h('div', { class: 'r-tabs' }, h('span', { class: 'on' }, '통합'), h('span', null, '뉴스'), h('span', null, '블로그'), h('span', null, '동영상')),
         kw.count ? h('div', { class: 'r-count' }, kw.count) : null,
         kw.results.map(resultCard),
         extra.map(resultCard),
-        kw.endless ? h('button', { class: 'more', onclick: () => { S.ui.kimMore = (S.ui.kimMore || 0) + 1; app.render(); } }, '결과 더 보기 ↓') : null,
+        kw.endless ? h('button', { class: 'more', onclick: () => { S.ui.kimMore = (S.ui.kimMore || 0) + 1; app.render(); } }, '검색결과 더보기 ⌄') : null,
         kw.footer ? h('div', { class: 'intuition' }, '기자의 직감: ' + kw.footer) : null);
     }
   }
-  return h('div', { class: 'app browser' },
-    header('인터넷', 'home'),
-    h('div', { class: 'searchbar' }, input,
-      h('button', { class: 'go', onclick: () => doSearch(input.value) }, '검색'),
-      q ? h('button', { class: 'go ghost', onclick: () => doSearch('') }, '×') : null),
+  return h('div', { class: 'app light browser' },
+    h('div', { class: 'searchbar' },
+      h('button', { class: 'back', onclick: () => go('home'), 'aria-label': '뒤로' }, '‹'),
+      input,
+      q ? h('button', { class: 'clear', onclick: () => doSearch(''), 'aria-label': '지우기' }, '✕') : null,
+      h('button', { class: 'go', onclick: () => doSearch(input.value), 'aria-label': '검색' }, '🔍')),
     h('div', { class: 'b-body' }, body));
 }
 
@@ -397,5 +524,6 @@ export function phoneView() {
   if (r.startsWith('gallery')) return gallery(r);
   if (r === 'sns') return sns();
   if (r === 'browser') return browser();
+  if (r.startsWith('article:')) return articlePage(r.slice(8));
   return home();
 }

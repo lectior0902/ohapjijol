@@ -2,6 +2,7 @@
 import { G, S, app, save, spend, remaining, memo, addFlag } from './state.js';
 import { h, banner, modal, isModalOpen, toast } from './ui.js';
 import { parkCombineCheck } from './interview.js';
+import { articleBody, articleById } from './phone.js';
 
 const E = () => G.data.events;
 const pinned = (id) => S.pinned.includes(id);
@@ -53,9 +54,7 @@ function fireForensic() {
   memo(`[잠신일보 속보] 국과수 결과. 메모: ${F.memo}`, 'event');
   save();
   const open = () => modal((close) => h('div', { class: 'news-sheet' },
-    h('div', { class: 'press-tag' }, '잠신일보 속보'),
-    h('div', { class: 'news-text' }, F.banner.replace('[잠신일보 속보] ', '')),
-    h('div', { class: 'sub' }, F.byline),
+    articleBody(articleById(F.article)),
     h('div', { class: 'intuition' }, '수첩: ' + F.memo),
     h('div', { class: 'sheet-actions' }, h('button', { class: 'primary', onclick: close }, '닫기'))));
   setTimeout(() => banner('잠신일보 속보', F.banner.replace('[잠신일보 속보] ', ''), open), 600);

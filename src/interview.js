@@ -35,7 +35,7 @@ export function bookView() {
   const r = S.ui.book || 'list';
   if (r.startsWith('sus:')) return interview(susById(r.slice(4)));
   return h('div', { class: 'app book' },
-    h('div', { class: 'app-head' }, h('span', { class: 'back-sp' }), h('div', { class: 'app-title' }, '취재 수첩'), h('span', { class: 'back-sp' })),
+    h('div', { class: 'app-head' }, h('span', { class: 'back-sp' }), h('div', { class: 'app-title' }, '취재 수첩'), budgetPill()),
     h('div', { class: 'book-body' },
       h('div', { class: 'rule' }, '질문 1회 = 1 소진. 루트 선택·전환은 무료. 추궁은 증거 1건 제시 = 1 소진.'),
       h('div', { class: 'sec-title' }, '취재 대상'),
@@ -96,7 +96,7 @@ function interview(sus) {
   return h('div', { class: 'app book interview' },
     h('div', { class: 'app-head' },
       h('button', { class: 'back', onclick: () => goBook('list'), 'aria-label': '뒤로' }, '‹'),
-      h('div', { class: 'app-title' }, sus.name), h('span', { class: 'back-sp' })),
+      h('div', { class: 'app-title' }, sus.name), budgetPill()),
     h('div', { class: 'iv-body' },
       h('div', { class: 'iv-top' },
         portrait(sus, st.expr, 'lg'),
