@@ -17,6 +17,7 @@ export function queueSms(contact, text, delayMs = 0) {
 
 function scheduleDelivery(contact, text, delayMs) {
   setTimeout(() => {
+    if (S.ending) return;
     sfx.message();
     banner(`문자 · ${contact}`, text, () => { S.ui.tab = 'phone'; S.ui.phone = 'sms'; app.render(); });
     app.render();

@@ -2,6 +2,7 @@
 import { G, S, app, save, evidenceById, personName, resetGame } from './state.js';
 import { h, modal, toast } from './ui.js';
 import { sfx } from './sound.js';
+import { screenSrc } from './pixel.js';
 
 const testimonyText = (id) => {
   const sus = G.data.suspects.find(s => s.interrogation.result === id);
@@ -160,11 +161,16 @@ export function endingView() {
       h('div', { class: 'edition' }, 'JAMSIN ILBO · 1판'),
       e.headline ? h('h1', { class: 'headline' }, e.headline) : h('div', { class: 'blank-slot' }, '(공란)'),
       e.headline ? h('div', { class: 'paper-by' }, '디지털탐사팀') : null,
-      e.headline && r.kind === 'true' ? h('div', { class: 'paper-photo' }, h('span', null, '임주연 씨의 휴대전화. 잠금 해제 실패 기록이 남아 있다.')) : null,
+      e.headline && e.photo ? h('div', { class: 'paper-photo', style: `background-image:url(${screenSrc(e.photo.file)})` },
+        h('img', { src: screenSrc(e.photo.file), alt: '', class: 'probe', onerror: (ev) => ev.target.parentNode.remove() }),
+        h('span', null, e.photo.caption)) : null,
       e.lead ? h('p', { class: 'lead' }, e.lead) : null,
       e.misjudge ? h('div', { class: 'misjudge' }, h('span', null, `오판: ${e.misjudge}`), h('span', null, `비판 대상: ${e.target}`)) : null),
     h('div', { class: 'ending-name' }, e.name),
-    h('div', { class: 'epilogues' }, e.epilogues.map((t, i) => h('div', { class: 'epi', style: `animation-delay:${0.25 + i * 0.35}s` }, t))),
+    h('div', { class: 'epilogues' }, e.epilogues.map((t, i) => h('div', { class: 'epi', style: `animation-delay:${0.25 + i * 0.35}s` },
+      e.finalImage && i === e.epilogues.length - 1
+        ? h('img', { class: 'epi-img', src: screenSrc(e.finalImage), alt: '', onerror: (ev) => ev.target.remove() }) : null,
+      t))),
     delayed ? h('div', { class: 'epi extra' }, EN.bad.delayedLine) : null,
     e.closing ? h('div', { class: 'closing' }, e.closing) : null,
     h('div', { class: 'review' },

@@ -5,6 +5,7 @@ import { phoneView } from './phone.js';
 import { bookView } from './interview.js';
 import { evidenceView, endingView } from './ending.js';
 import { checkTriggers, resumePending } from './events.js';
+import { screenSrc } from './pixel.js';
 import { isMuted, setMuted, sfx } from './sound.js';
 
 app.toast = toast;
@@ -22,6 +23,7 @@ function viewKey() {
 function introView() {
   const M = G.data.meta;
   return h('div', { class: 'intro' },
+    h('img', { class: 'intro-key', src: screenSrc('title'), alt: '' }),
     h('div', { class: 'intro-press' }, '잠신일보 디지털탐사팀'),
     h('h1', { class: 'intro-title' }, M.title),
     h('div', { class: 'intro-sub' }, M.subtitle),

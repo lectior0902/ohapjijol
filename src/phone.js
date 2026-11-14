@@ -281,6 +281,7 @@ export function notes(route) {
 
 // ───────── 갤러리 ─────────
 function pixelArt(g) {
+  if (g.frames) return h('div', { class: 'frames' }, g.frames.map(f => pixelArt({ ...g, frames: null, pixel: f.pixel, ts: f.ts })));
   const src = sceneSrc(g.pixel);
   const cam = g.kind === 'cam', sec = g.kind === 'security';
   return h('div', { class: 'art pix ' + (cam ? 'pix-cam' : sec ? 'pix-sec' : 'pix-photo') },

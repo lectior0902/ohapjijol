@@ -2,7 +2,7 @@
 import { G, S, app, save, spend, remaining, budgetTotal, anyOf, grant, addTestimony, evidenceById, memo, personName } from './state.js';
 import { cond, addFlag } from './state.js';
 import { h, modal, portrait, toast } from './ui.js';
-import { portraitSrc, placeSrc } from './pixel.js';
+import { portraitSrc, placeSrc, avatarSrc } from './pixel.js';
 import { sfx } from './sound.js';
 
 const goBook = (r) => { S.ui.book = r; S.ui.scrollTop = 0; app.render(); };
@@ -84,7 +84,7 @@ function mapView() {
     <marker id="arrn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker>
     </defs>${lines.join('')}</svg>`;
   const nodeImg = (id) => {
-    const src = portraitSrc(id === 'ju' ? 'ju' : id, '기본');
+    const src = avatarSrc(id);
     return src ? h('img', { src, alt: '' }) : h('span', { class: 'rel-q' }, id === 'kim' ? '?' : '오');
   };
   return h('div', { class: 'rel' },
@@ -172,7 +172,9 @@ function interview(sus) {
       h('div', { class: 'app-title' }, sus.name), budgetPill()),
     h('div', { class: 'iv-body' },
       h('div', { class: 'iv-top' },
-        h('div', { class: 'iv-stage', style: `background-image:url(${placeSrc(sus.id)})` }, portrait(sus, st.expr, 'lg')),
+        h('div', { class: 'iv-stage', style: `background-image:url(${placeSrc(sus.id)})` },
+          h('img', { class: 'stage-portrait', src: portraitSrc(sus.id, st.expr), alt: `${sus.name} · ${st.expr}` }),
+          h('div', { class: 'stage-expr' }, `${st.expr} · ${sus.expressions[st.expr]}`)),
         h('div', { class: 'iv-meta' },
           h('b', null, `${sus.name} (${sus.age})`), h('div', { class: 'sub' }, sus.role),
           h('div', { class: 'sub place' }, sus.place), h('div', { class: 'place-line' }, sus.placeLine))),
