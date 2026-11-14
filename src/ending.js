@@ -6,8 +6,11 @@ import { sfx } from './sound.js';
 const testimonyText = (id) => {
   const sus = G.data.suspects.find(s => s.interrogation.result === id);
   const I = sus.interrogation;
-  return I.mode === 'partial' ? I.combine.text : I.resultText;
+  if (I.mode !== 'partial') return I.resultText;
+  return S.suspects.park.full ? I.combine.text : I.combine.partialText;
 };
+const parkFull = () => S.testimony.includes('C-park') && S.suspects.park.full;
+const outsideOf = (id) => ((evidenceById(id) || {}).proves || []).filter(p => p.outside).map(p => p.who);
 
 function evCard(id) {
   const ev = evidenceById(id);
@@ -16,7 +19,7 @@ function evCard(id) {
   return h('div', { class: 'ev-card' + (isT ? ' testimony' : '') + (ev.start ? ' start' : '') },
     h('div', { class: 'ev-head' },
       h('span', { class: 'ev-id' }, isT ? '증언' : id),
-      h('b', null, ev.title),
+      h('b', null, ev.title + (id === 'C-park' && !S.suspects.park.full ? ' (일부 인정)' : '')),
       S.marks[id] ? h('span', { class: 'mark' }, S.marks[id]) : null),
     h('div', { class: 'ev-desc' }, isT ? testimonyText(id) : ev.desc),
     tags.length ? h('div', { class: 'ev-tags' }, tags.map(t => h('span', { class: 'tag' }, t))) : null);
@@ -39,8 +42,9 @@ export function evidenceView() {
 // ───────── 기사 쓰기 ─────────
 function formView() {
   const F = G.data.form;
-  S.ui.form = S.ui.form || { q1: 0, q2: 0, a: '', b: '', c1: '', c2: '' };
+  S.ui.form = S.ui.form || { q1: 0, q2: 0 };
   const D = S.ui.form;
+  const slotIds = F.slots.map(s => s.id);
   const pool = [...G.data.evidence.map(e => e.id).filter(id => S.pinned.includes(id) && !evidenceById(id).start), ...S.testimony];
   const parkSt = S.suspects.park;
 
@@ -51,7 +55,7 @@ function formView() {
       const hints = [];
       if (key === 'q1' && n === 2) {
         if (S.events.forensic) hints.push('국과수 근거');
-        if (S.testimony.includes('C-park') && parkSt.cause) hints.push('자백 근거');
+        if (parkFull()) hints.push('자백 근거');
       }
       return h('label', { class: 'opt' + (D[key] === n ? ' on' : '') },
         h('input', { type: 'radio', name: key, checked: D[key] === n, onchange: () => { D[key] = n; save(); app.render(); } }),
@@ -65,7 +69,9 @@ function formView() {
       h('option', { value: '' }, '— 증거 선택 —'),
       pool.map(id => h('option', { value: id, selected: D[s.id] === id }, `${id.startsWith('C-') ? '증언' : id} · ${evidenceById(id).title}`))));
 
-  const ready = D.q1 && D.q2 && D.a && D.b && D.c1 && D.c2;
+  const ready = D.q1 && D.q2 && slotIds.every(k => D[k]);
+  const group = (g, legend, note) => h('fieldset', { class: 'fq' },
+    h('legend', null, legend), F.slots.filter(s => s.group === g).map(slot), note ? h('div', { class: 'sub' }, note) : null);
   return h('div', { class: 'app evidence form' },
     h('div', { class: 'app-head' },
       h('button', { class: 'back', onclick: () => { S.ui.ev = 'list'; app.render(); } }, '‹'),
@@ -74,12 +80,11 @@ function formView() {
       h('div', { class: 'rule' }, '당신이 쓰는 것은 범인이 아니라 보도 프레임이다. 제출하면 1판이 인쇄된다.'),
       radio('q1', F.q1),
       radio('q2', F.q2),
-      h('fieldset', { class: 'fq' },
-        h('legend', null, '③ 결정적 증거 네 칸'),
-        F.slots.map(slot),
-        h('div', { class: 'sub' }, F.cNote)),
+      group('a', '③-a 그날 밤 방 안에 있던 손', F.aNote),
+      group('b', '③-b 폭로를 발주한 구조'),
+      group('c', '③-c 방 밖에서 밀어 넣은 손들', F.cNote),
       h('button', { class: 'write-btn', onclick: () => {
-        if (!(D.q1 && D.q2 && D.a && D.b && D.c1 && D.c2)) return toast('모든 칸을 채워야 1판에 넣을 수 있다.');
+        if (!(D.q1 && D.q2 && slotIds.every(k => D[k]))) return toast('모든 칸을 채워야 1판에 넣을 수 있다.');
         confirmSubmit();
       } }, ready ? '송고한다' : '송고한다 (빈칸 있음)')));
 }
@@ -95,12 +100,16 @@ function confirmSubmit() {
 
 export function judge(D) {
   const F = G.data.form;
-  const valid = (sid) => F.slots.find(s => s.id === sid).valid;
-  const okA = valid('a').includes(D.a);
-  const okB = valid('b').includes(D.b);
-  const cp = (id) => (evidenceById(id) || {}).cPersons || [];
-  const p1 = cp(D.c1), p2 = cp(D.c2);
-  const okC = D.c1 !== D.c2 && p1.some(x => p2.some(y => x !== y));
+  const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+  // ③a: 두 증거의 조합, 또는 전체 자백 카드 하나
+  const aPick = [D.a1, D.a2].filter(Boolean);
+  const okA = F.aRule.pairs.some(p => same(p, aPick)) || (aPick.includes(F.aRule.fullTestimony) && parkFull());
+  const okB = F.slots.find(s => s.id === 'b').valid.includes(D.b);
+  // ③c: 서로 다른 세 증거가 모두 방 밖의 행위를 보이고, 합쳐서 세 사람을 모두 덮어야 한다
+  const cPick = [D.c1, D.c2, D.c3];
+  const cOuts = cPick.map(outsideOf);
+  const covered = new Set(cOuts.flat());
+  const okC = new Set(cPick).size === 3 && cOuts.every(o => o.length > 0) && F.cRule.need.every(p => covered.has(p));
   const ok1 = D.q1 === F.q1.answer, ok2 = D.q2 === F.q2.answer;
   let kind;
   if (!ok1) kind = 'bad' + D.q1;
@@ -155,7 +164,7 @@ export function endingView() {
     h('div', { class: 'review' },
       h('div', { class: 'sec-title' }, '데스크 검토'),
       check(r.ok1, '① 사인'), check(r.ok2, '② 구조'),
-      check(r.okA, '③a 방 안의 손'), check(r.okB, '③b 발주 구조'), check(r.okC, '③c 방 밖의 두 사람')),
+      check(r.okA, '③a 방 안의 손'), check(r.okB, '③b 발주 구조'), check(r.okC, '③c 방 밖의 세 사람')),
     h('div', { class: 'ending-actions' },
       h('button', { class: 'ghost', onclick: share }, '공유'),
       h('button', { class: 'primary', onclick: () => {

@@ -349,7 +349,7 @@ export function gallery(route) {
     h('div', { class: 'gal-scroll' }, albums.map(a => [
       h('div', { class: 'album' }, a),
       h('div', { class: 'gal-grid' }, items.filter(x => x.album === a).map(g =>
-        h('button', { class: 'gal-tile k-' + g.kind + (g.pixel ? ' has-pix' : ''), onclick: () => go('gallery:' + g.id),
+        h('button', { class: 'gal-tile k-' + g.kind + (g.pixel ? ' has-pix' : '') + (g.daily ? ' daily' : ''), onclick: () => go('gallery:' + g.id),
           style: g.pixel ? `background-image:url(${sceneSrc(g.pixel)})` : null },
           h('span', { class: 'tile-kind' }, g.title),
           h('span', { class: 'tile-ts' }, g.ts)))),
@@ -369,7 +369,7 @@ function snsPrivate(acc) {
           h('div', { class: 'x-draft-tag' }, `임시저장 · ${p.ts}`),
           h('div', { class: 'x-text' }, p.text),
           h('div', { class: 'x-draft-btn' }, '게시하지 않음'))
-      : h('div', { class: 'x-post' },
+      : h('div', { class: 'x-post' + (p.daily ? ' daily' : '') },
           h('span', { class: 'x-avatar sm' }, '주'),
           h('div', { class: 'x-body' },
             h('div', null, h('b', null, acc.name), h('span', { class: 'sub' }, ` @${acc.account} · ${p.ts}`)),
@@ -588,7 +588,7 @@ export function mail(route) {
       header(fname[f[1]], 'mail', null, 'light'),
       h('div', { class: 'list' }, list.map(it => {
         const who = it.folder === 'inbox' ? it.from : (it.to || '(받는 사람 없음)');
-        return h('button', { class: 'row mail-row', onclick: () => go('mail:item:' + it.id) },
+        return h('button', { class: 'row mail-row' + (it.daily ? ' daily' : ''), onclick: () => go('mail:item:' + it.id) },
           h('span', { class: 'mail-av' + (it.bank ? ' bank' : '') }, who.slice(0, 1)),
           h('div', { class: 'row-main' },
             h('b', null, who),

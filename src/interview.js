@@ -233,12 +233,20 @@ export function parkCombineCheck() {
   const st = S.suspects.park;
   const I = sus.interrogation;
   st.cause = st.partials.some(p => I.combine.causeIf.includes(p));
-  if (!st.done && st.partials.length >= I.combine.min) {
-    st.done = true; st.expr = '자백';
-    st.log.push({ kind: 'combine', a: I.combine.text });
+  if (st.partials.length < I.combine.min) return;
+  if (!st.done) {
+    // 2개 이상 모이면 증언 카드. P3·P4가 없으면 메일 저지·현장 편집까지만 인정한다.
+    st.done = true; st.expr = '자백'; st.full = st.cause;
+    st.log.push({ kind: 'combine', a: st.full ? I.combine.text : I.combine.partialText });
     sfx.confess();
     addTestimony(I.result);
-    toast('증언 카드 확보: 박지영 전체 인정', 3200);
+    toast(st.full ? '증언 카드 확보: 박지영 전체 인정' : I.combine.partialToast, 3400);
+  } else if (st.cause && !st.full) {
+    st.full = true;
+    st.log.push({ kind: 'combine', a: I.combine.text });
+    sfx.confess();
+    memo('박지영 전체 인정: 약물 투여·위험 외면까지', 'testi');
+    toast(I.combine.fullToast, 3400);
   }
 }
 
