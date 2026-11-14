@@ -1,6 +1,7 @@
 // 증거함, 기사 쓰기(보도 프레임), 엔딩 판정과 화면
 import { G, S, app, save, evidenceById, personName, resetGame } from './state.js';
 import { h, modal, toast } from './ui.js';
+import { sfx } from './sound.js';
 
 const testimonyText = (id) => {
   const sus = G.data.suspects.find(s => s.interrogation.result === id);
@@ -111,6 +112,7 @@ export function judge(D) {
 function submit() {
   const r = judge(S.ui.form);
   S.ending = r;
+  sfx.print();
   save(); app.render();
 }
 

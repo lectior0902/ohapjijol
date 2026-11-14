@@ -1,6 +1,7 @@
 // 돌발 이벤트 3종: 국과수 속보, 기습 착신 전화, 편집국장 독촉
 import { G, S, app, save, spend, remaining, memo, addFlag } from './state.js';
 import { h, banner, modal, isModalOpen, toast } from './ui.js';
+import { sfx, startRing, stopRing } from './sound.js';
 import { parkCombineCheck } from './interview.js';
 import { articleBody, articleById } from './phone.js';
 
@@ -16,6 +17,7 @@ export function queueSms(contact, text, delayMs = 0) {
 
 function scheduleDelivery(contact, text, delayMs) {
   setTimeout(() => {
+    sfx.message();
     banner(`문자 · ${contact}`, text, () => { S.ui.tab = 'phone'; S.ui.phone = 'sms'; app.render(); });
     app.render();
   }, Math.max(0, delayMs));
@@ -27,11 +29,39 @@ export function resumePending() {
   S.extraSms.filter(m => m.at > now).forEach(m => scheduleDelivery(m.contact, m.text, m.at - now));
 }
 
+
+// ── B4 언니 반응 문자 (대기열, 하나씩) ──
+let sisterBusy = false;
+function sisterCheck() {
+  const sent = S.events.sister || (S.events.sister = []);
+  const queue = S.events.sisterQ || (S.events.sisterQ = []);
+  const pins = S.pinned.filter(id => !id.startsWith('S0')).length;
+  const ok = {
+    pins3: pins >= 3,
+    forensic: S.events.forensic,
+    firstT: S.flags.some(f => f.startsWith('T-')),
+    editor: S.events.editorChoice != null,
+  };
+  for (const m of (G.data.sister || [])) {
+    if (ok[m.when] && !sent.includes(m.id) && !queue.includes(m.id)) queue.push(m.id);
+  }
+  if (!sisterBusy && queue.length) {
+    sisterBusy = true;
+    const id = queue.shift();
+    sent.push(id);
+    save();
+    const m = G.data.sister.find(x => x.id === id);
+    queueSms('언니', m.text, 4000);
+    setTimeout(() => { sisterBusy = false; sisterCheck(); }, 20000);
+  }
+}
+
 let checking = false;
 export function checkTriggers() {
   if (checking || !S.started || S.ending) return;
   if (isModalOpen()) { setTimeout(checkTriggers, 700); return; }
   checking = true;
+  sisterCheck();
   try {
     if (!S.events.forensic && (pinned('E08') || pinned('E12') || S.spent >= 6)) {
       fireForensic();
@@ -57,7 +87,7 @@ function fireForensic() {
     articleBody(articleById(F.article)),
     h('div', { class: 'intuition' }, '수첩: ' + F.memo),
     h('div', { class: 'sheet-actions' }, h('button', { class: 'primary', onclick: close }, '닫기'))));
-  setTimeout(() => banner('잠신일보 속보', F.banner.replace('[잠신일보 속보] ', ''), open), 600);
+  setTimeout(() => { sfx.notify(); banner('잠신일보 속보', F.banner.replace('[잠신일보 속보] ', ''), open); }, 600);
 }
 
 // ── 5.2 기습 착신 전화 ──
@@ -72,6 +102,7 @@ function fireCall(who) {
       const finish = () => { close(); save(); app.render(); setTimeout(checkTriggers, 500); };
 
       const ringing = () => {
+        startRing();
         box.replaceChildren(
           h('div', { class: 'call-label' }, '수신 전화'),
           h('div', { class: 'call-name' }, name),
@@ -81,12 +112,14 @@ function fireCall(who) {
             h('button', { class: 'call-btn accept', onclick: answer }, '받기')));
       };
       const refuse = () => {
+        stopRing();
         S.events.callChoice = 3;
         if (who === 'park') { addFlag('park-refused', true); S.suspects.park.expr = '동요'; }
         queueSms(name, C.refuseSms, 1500);
         finish();
       };
       const answer = () => {
+        stopRing();
         box.replaceChildren(
           h('div', { class: 'call-label' }, '통화 중 · ' + name),
           h('div', { class: 'call-script' }, `“${C.script}”`),
@@ -111,6 +144,7 @@ function fireCall(who) {
         if (who === 'park') {
           const st = S.suspects.park;
           if (!st.partials.includes('P1')) st.partials.push('P1');
+          addFlag('P1', true);
           memo('박지영 부분 자백 P1: 잠금 시도 (전화)', 'testi');
           queueSms(name, C.pressSms, 15000);
           parkCombineCheck();
@@ -137,6 +171,7 @@ function fireEditor() {
   S.extraSms.push({ contact: D.from, from: D.from, text: D.text, ts: '11-13 22:00', at: Date.now(), read: true });
   save();
   setTimeout(() => {
+    sfx.message();
     modal((close) => {
       const finish = (c) => {
         S.events.editorChoice = c.id;

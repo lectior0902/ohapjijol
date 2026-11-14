@@ -5,6 +5,7 @@ import { phoneView } from './phone.js';
 import { bookView } from './interview.js';
 import { evidenceView, endingView } from './ending.js';
 import { checkTriggers, resumePending } from './events.js';
+import { isMuted, setMuted, sfx } from './sound.js';
 
 app.toast = toast;
 app.afterChange = () => setTimeout(checkTriggers, 300);
@@ -63,7 +64,7 @@ function statusBar() {
 function isLightScreen() {
   if (!S.started || S.ending || S.ui.tab !== 'phone' || !S.unlocked) return false;
   const r = S.ui.phone || '';
-  return r === 'sms' || r === 'calls' || r.startsWith('sms:') || r === 'browser' || r.startsWith('article:');
+  return r === 'sms' || r === 'calls' || r.startsWith('sms:') || r === 'browser' || r.startsWith('article:') || r === 'mail' || r.startsWith('mail:');
 }
 
 export function render() {
@@ -93,6 +94,7 @@ function menu() {
     h('div', { class: 'sheet-title' }, '메뉴'),
     h('div', { class: 'sub' }, '진행 상황은 이 브라우저에만 저장된다.'),
     h('div', { class: 'sheet-actions col' },
+      h('button', { class: 'ghost', onclick: () => { setMuted(!isMuted()); close(); menu(); if (!isMuted()) sfx.notify(); } }, isMuted() ? '🔇 효과음 켜기' : '🔊 효과음 끄기'),
       h('button', { class: 'ghost', onclick: close }, '계속하기'),
       h('button', { class: 'danger', onclick: () => { close(); resetGame(); render(); } }, '처음부터 다시 하기'))));
 }

@@ -1,6 +1,8 @@
 // 폰 화면: 잠금화면, 홈, 앱 6종, 기사 페이지
 import { G, S, app, pin, addFlag, save } from './state.js';
 import { h } from './ui.js';
+import { sceneSrc } from './pixel.js';
+import { sfx } from './sound.js';
 
 const ME = '임주연';
 const fmtDay = (d) => { const p = d.split('-').map(Number); return p.length === 3 ? `${p[0]}년 ${p[1]}월 ${p[2]}일` : `${p[0]}월 ${p[1]}일`; };
@@ -19,7 +21,7 @@ export function pinBar(id) {
   return h('div', { class: 'pinbar' + (done ? ' done' : '') },
     h('button', {
       class: 'pin-btn', disabled: done,
-      onclick: () => { pin(id); app.afterChange(); app.render(); },
+      onclick: () => { if (pin(id)) sfx.pin(); app.afterChange(); app.render(); },
     }, done ? '📌 고정됨' : '📌 증거함에 고정'),
     h('span', { class: 'pin-label' }, `${id} · ${ev.title}`));
 }
@@ -31,16 +33,17 @@ export function lockScreen() {
   const dots = h('div', { class: 'pin-dots' }, [0, 1, 2, 3].map(i => h('span', { class: i < entered.length ? 'on' : '' })));
   const hint = S.failCount >= 3 ? `${L.hints.after1}  ${L.hints.after3}` : S.failCount >= 1 ? L.hints.after1 : '';
   const press = (d) => {
+    sfx.key();
     if (d === 'del') { entered = entered.slice(0, -1); app.render(); return; }
     if (entered.length >= 4) return;
     entered += d;
     if (entered.length === 4) {
       if (entered === G.data.meta.passcode) {
         S.unlocked = true; entered = ''; S.ui.keypad = false;
-        app.toast(L.unlockToast, 5200);
+        app.toast(L.unlockToast, 5200); sfx.unlock();
         save(); app.render();
       } else {
-        S.failCount++; entered = '';
+        S.failCount++; entered = ''; sfx.wrong();
         document.querySelector('.pin-dots')?.classList.add('shake');
         setTimeout(() => app.render(), 380);
         save();
@@ -87,6 +90,7 @@ const APPS = [
   { id: 'gallery', name: '갤러리', icon: '🖼', color: 'linear-gradient(#d38cf0,#8f4fd8)' },
   { id: 'sns', name: 'SNS', icon: '◎', color: 'linear-gradient(#ff7a85,#e0245e)' },
   { id: 'browser', name: '인터넷', icon: '🌐', color: 'linear-gradient(#7aa7ff,#3a6fe0)' },
+  { id: 'mail', name: '메일', icon: '✉', color: 'linear-gradient(#6fb8ff,#2a7de1)' },
 ];
 
 export function home() {
@@ -141,13 +145,30 @@ function thumbnail(img) {
 export function sms(route) {
   const threads = smsThreads();
   if (route === 'calls') {
+    if (addFlag('seen:calls', true)) { save(); app.afterChange(); }
+    const open = S.ui.vmOpen || '';
     return h('div', { class: 'app light sms-app' },
       header('최근 통화', 'sms', null, 'light'),
-      h('div', { class: 'list' }, G.data.apps.sms.callLog.map(c =>
-        h('div', { class: 'row call ' + (c.type === '부재중' ? 'missed' : '') },
-          h('span', { class: 'call-ic' }, c.type === '부재중' ? '↙' : c.type === '수신' ? '↙' : '↗'),
-          h('div', { class: 'row-main' }, h('b', null, c.contact), h('span', { class: 'sub' }, c.type + (c.duration ? ` · ${c.duration}` : ''))),
-          h('div', { class: 'row-ts' }, c.ts)))));
+      h('div', { class: 'list' }, G.data.apps.sms.callLog.map(c => {
+        const key = `vm:${c.contact}:${c.ts}`;
+        const isOpen = open === key;
+        return h('div', { class: 'call-wrap' },
+          h('div', { class: 'row call ' + (c.type === '부재중' ? 'missed' : '') },
+            h('span', { class: 'call-ic' }, c.type === '발신' ? '↗' : '↙'),
+            h('div', { class: 'row-main' }, h('b', null, c.contact), h('span', { class: 'sub' }, c.type + (c.duration ? ` · ${c.duration}` : '') + (c.vm ? ' · 음성 메시지' : ''))),
+            c.vm ? h('button', { class: 'vm-btn' + (isOpen ? ' on' : ''), 'aria-label': '음성 메시지', onclick: () => {
+              S.ui.vmOpen = isOpen ? '' : key;
+              if (!isOpen && addFlag(key, true)) { save(); app.afterChange(); }
+              if (!isOpen) sfx.message();
+              app.render();
+            } }, isOpen ? '❚❚' : '▶') : null,
+            h('div', { class: 'row-ts' }, c.ts)),
+          isOpen ? h('div', { class: 'vm-box' },
+            h('div', { class: 'vm-wave' }, Array.from({ length: 28 }, (_, i) => h('i', { style: `height:${4 + ((i * 7) % 13)}px` }))),
+            h('div', { class: 'vm-meta' }, `음성 메시지 · ${c.vm.len}`),
+            h('div', { class: 'vm-text' }, '“' + c.vm.text + '”'),
+            h('div', { class: 'vm-note' }, '받아쓰기 (자동 변환)')) : null);
+      })));
   }
   const m = route.match(/^sms:(\d+)$/);
   if (m) {
@@ -202,6 +223,7 @@ export function telegram(route) {
   const T = G.data.apps.telegram;
   if (route === 'tg:g0') {
     const g = T.groups[0];
+    if (addFlag('seen:tg-group', true)) { save(); app.afterChange(); }
     return h('div', { class: 'app tg' },
       header(g.name, 'tg', h('span', { class: 'tg-members' }, `멤버 ${g.members.length}`), 'tg-head'),
       h('div', { class: 'chat' },
@@ -258,8 +280,23 @@ export function notes(route) {
 }
 
 // ───────── 갤러리 ─────────
+function pixelArt(g) {
+  const src = sceneSrc(g.pixel);
+  const cam = g.kind === 'cam', sec = g.kind === 'security';
+  return h('div', { class: 'art pix ' + (cam ? 'pix-cam' : sec ? 'pix-sec' : 'pix-photo') },
+    h('img', { src, alt: g.scene || g.title, class: 'pix-img' }),
+    cam ? h('div', { class: 'pix-overlay' }, h('span', null, '● REC'), h('span', null, g.ts)) : null,
+    sec ? h('div', { class: 'pix-overlay' }, h('span', null, '보안 · 전면 카메라'), h('span', null, g.ts)) : null,
+    cam ? h('div', { class: 'pix-foot' }, '띵동캠 · 현관') : null,
+    g.caption ? h('div', { class: 'pix-caption' }, g.caption) : null);
+}
+
 export function galleryArt(g) {
+  if (g.pixel) return h('div', null, pixelArt(g), g.scene ? h('div', { class: 'scene-desc' }, g.scene) : null);
   switch (g.kind) {
+    case 'cake':
+      return h('div', { class: 'art cake' }, h('div', { class: 'cake-brand' }, g.lines[0]), h('div', { class: 'cake-ok' }, '✓ ' + g.lines[1]),
+        g.lines.slice(2).map(l => h('div', { class: 'cake-line' }, l)));
     case 'receipt':
       return h('div', { class: 'art receipt' }, g.lines.map(l => h('div', null, l)));
     case 'doc':
@@ -312,7 +349,8 @@ export function gallery(route) {
     h('div', { class: 'gal-scroll' }, albums.map(a => [
       h('div', { class: 'album' }, a),
       h('div', { class: 'gal-grid' }, items.filter(x => x.album === a).map(g =>
-        h('button', { class: 'gal-tile k-' + g.kind, onclick: () => go('gallery:' + g.id) },
+        h('button', { class: 'gal-tile k-' + g.kind + (g.pixel ? ' has-pix' : ''), onclick: () => go('gallery:' + g.id),
+          style: g.pixel ? `background-image:url(${sceneSrc(g.pixel)})` : null },
           h('span', { class: 'tile-kind' }, g.title),
           h('span', { class: 'tile-ts' }, g.ts)))),
     ])));
@@ -401,6 +439,7 @@ export function sns() {
   const accs = G.data.apps.sns;
   const i = Math.min(S.ui.snsAcc || 0, accs.length - 1);
   const acc = accs[i];
+  if (addFlag('seen:sns', true)) { save(); app.afterChange(); }
   const render = { private: snsPrivate, channel: snsChannel, official: snsOfficial, insta: snsInsta }[acc.style];
   return h('div', { class: 'app sns sns-' + acc.style },
     header('SNS', 'home', null, 'sns-head'),
@@ -449,8 +488,8 @@ function resultCard(r) {
   return h('div', { class: 'result r-' + r.type + (art ? ' link' : ''), onclick: open },
     h('div', { class: 'r-src' }, h('span', { class: 'r-fav' }, (r.source || '·').slice(0, 1)), h('span', null, r.source), h('span', { class: 'r-type' }, TYPE_LABEL[r.type] || '')),
     r.type === 'video' ? h('div', { class: 'r-video' }, h('div', { class: 'r-vthumb' }, '▶'), h('div', { class: 'r-title' }, r.title))
-      : h('div', { class: 'r-title' }, art ? art.title : r.title),
-    art ? h('div', { class: 'r-body' }, art.body[0]) : (r.body ? h('div', { class: 'r-body' }, r.body) : null),
+      : h('div', { class: 'r-title' }, r.title || (art ? art.title : '')),
+    art && !r.body ? h('div', { class: 'r-body' }, art.body[0]) : (r.body ? h('div', { class: 'r-body' }, r.body) : null),
     r.comments ? h('div', { class: 'r-comments' }, r.comments.map(c => h('div', null, '└ ' + c))) : null,
     r.pin ? h('div', { onclick: (e) => e.stopPropagation() }, pinBar(r.pin)) : null);
 }
@@ -489,6 +528,10 @@ export function browser() {
       h('div', { class: 'b-sec' }, '최근 검색어'),
       B.recent.map(r => h('button', { class: 'row recent', onclick: () => doSearch(r.q) },
         h('div', { class: 'row-main' }, h('span', null, '🕘  ' + r.q)), h('div', { class: 'row-ts' }, r.ts))),
+      h('details', { class: 'older' },
+        h('summary', null, '이전 검색 기록'),
+        (B.older || []).map(r => h('button', { class: 'row recent', onclick: () => doSearch(r.q) },
+          h('div', { class: 'row-main' }, h('span', null, '🕘  ' + r.q)), h('div', { class: 'row-ts' }, r.ts)))),
       S.keywords.length ? h('div', { class: 'b-sec' }, '취재 수첩 키워드') : null,
       h('div', { class: 'chips' }, S.keywords.map(k => h('button', { class: 'chip', onclick: () => doSearch(k) }, '# ' + k))));
   } else {
@@ -514,6 +557,56 @@ export function browser() {
     h('div', { class: 'b-body' }, body));
 }
 
+// ───────── 메일 ─────────
+export function mail(route) {
+  const M = G.data.apps.mail;
+  const fname = Object.fromEntries(M.folders);
+  const inFolder = (x, fid) => x.folder === fid || (fid === 'scheduled' && x.scheduled);
+  const m = route.match(/^mail:item:(.+)$/);
+  if (m) {
+    const it = M.items.find(x => x.id === m[1]);
+    if (addFlag('mail:' + it.id, true)) { save(); app.afterChange(); }
+    return h('div', { class: 'app light mail-app' },
+      header(fname[it.folder], 'mail:' + it.folder, null, 'light'),
+      h('div', { class: 'mail-view' },
+        h('h2', { class: 'mail-subj' }, it.subject),
+        it.scheduled ? h('div', { class: 'mail-sched' }, `⏱ 예약 발송 완료 · 작성 ${it.written} → 발송 ${it.ts}`) : null,
+        it.folder === 'drafts' ? h('div', { class: 'mail-sched draft' }, '✎ 임시 저장 · 보내지 않은 메일') : null,
+        h('div', { class: 'mail-hdr' },
+          h('span', { class: 'mail-av' + (it.bank ? ' bank' : '') }, (it.from || '?').slice(0, 1)),
+          h('div', { class: 'mail-who' },
+            h('div', null, h('b', null, it.from)),
+            h('div', { class: 'sub' }, `받는 사람: ${it.to || '(비어 있음)'}`)),
+          h('div', { class: 'row-ts' }, it.ts)),
+        h('div', { class: 'mail-body' + (it.cut ? ' cut' : '') }, it.body),
+        it.attach ? h('div', { class: 'mail-attach' }, h('span', { class: 'file-ic' }, 'PDF'), it.attach) : null));
+  }
+  const f = route.match(/^mail:(\w+)$/);
+  if (f) {
+    const list = M.items.filter(x => inFolder(x, f[1]));
+    return h('div', { class: 'app light mail-app' },
+      header(fname[f[1]], 'mail', null, 'light'),
+      h('div', { class: 'list' }, list.map(it => {
+        const who = it.folder === 'inbox' ? it.from : (it.to || '(받는 사람 없음)');
+        return h('button', { class: 'row mail-row', onclick: () => go('mail:item:' + it.id) },
+          h('span', { class: 'mail-av' + (it.bank ? ' bank' : '') }, who.slice(0, 1)),
+          h('div', { class: 'row-main' },
+            h('b', null, who),
+            h('span', { class: 'mail-s' }, it.subject),
+            h('span', { class: 'sub' }, it.body.split('\n')[0])),
+          h('div', { class: 'row-ts' }, it.ts));
+      })));
+  }
+  const icon = { inbox: '📥', sent: '📤', drafts: '📝', scheduled: '⏱' };
+  return h('div', { class: 'app light mail-app' },
+    header('메일', 'home', null, 'light'),
+    h('div', { class: 'mail-acct' }, 'jy.lim · 개인 메일'),
+    h('div', { class: 'list' }, M.folders.map(([fid, name]) => h('button', { class: 'row', onclick: () => go('mail:' + fid) },
+      h('span', { class: 'folder-ic' }, icon[fid]),
+      h('div', { class: 'row-main' }, h('b', null, name)),
+      h('div', { class: 'row-ts' }, String(M.items.filter(x => inFolder(x, fid)).length))))));
+}
+
 export function phoneView() {
   if (!S.unlocked) return lockScreen();
   const r = S.ui.phone || 'home';
@@ -525,5 +618,6 @@ export function phoneView() {
   if (r === 'sns') return sns();
   if (r === 'browser') return browser();
   if (r.startsWith('article:')) return articlePage(r.slice(8));
+  if (r === 'mail' || r.startsWith('mail:')) return mail(r);
   return home();
 }

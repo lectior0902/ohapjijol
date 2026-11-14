@@ -1,6 +1,9 @@
 // 취재 수첩: 용의자 목록, 질문(루트 A/B, 심화), 추궁(단일/부분 자백), 메모 기록
 import { G, S, app, save, spend, remaining, budgetTotal, anyOf, grant, addTestimony, evidenceById, memo, personName } from './state.js';
+import { cond, addFlag } from './state.js';
 import { h, modal, portrait, toast } from './ui.js';
+import { portraitSrc, placeSrc } from './pixel.js';
+import { sfx } from './sound.js';
 
 const goBook = (r) => { S.ui.book = r; S.ui.scrollTop = 0; app.render(); };
 const susById = (id) => G.data.suspects.find(s => s.id === id);
@@ -31,16 +34,86 @@ function suspectCard(s) {
     h('span', { class: 'sus-status' + (st.done ? ' done' : '') }, status));
 }
 
+
+// ───────── 타임라인 ─────────
+function timelineView() {
+  const T = G.data.timeline;
+  const known = T.filter(e => anyOf(e.when)).length;
+  return h('div', { class: 'tl' },
+    h('div', { class: 'tl-head' }, `11월 6일 밤 — 확인한 시각 ${known}/${T.length}`),
+    h('div', { class: 'sub tl-help' }, '증거를 모으면 칸이 채워진다. “??”는 아직 모르는 시간대.'),
+    h('div', { class: 'tl-list' }, T.map(e => {
+      const ok = anyOf(e.when);
+      return h('div', { class: 'tl-item' + (ok ? ' on' : '') },
+        h('div', { class: 'tl-t' }, e.t),
+        h('div', { class: 'tl-dot' }),
+        h('div', { class: 'tl-text' }, ok ? e.text : '??'));
+    })));
+}
+
+// ───────── 관계도 ─────────
+const allOf = (list) => list.every(cond);
+export function relationLevel(edge) {
+  let hit = null;
+  for (const lv of edge.levels) if (allOf(lv.all)) hit = lv;
+  return hit;
+}
+function mapView() {
+  const R = G.data.relations;
+  const pos = Object.fromEntries(R.nodes.map(n => [n.id, n]));
+  const W = 340, H = 420;
+  const px = (n) => [n.x / 100 * W, n.y / 100 * H];
+  const lines = [], labels = [];
+  let found = 0;
+  R.edges.forEach((e, i) => {
+    const lv = relationLevel(e);
+    if (!lv) return;
+    found++;
+    let [x1, y1] = px(pos[e.from]), [x2, y2] = px(pos[e.to]);
+    if (e.night) { x1 += 20; x2 += 20; }
+    if (e.offset) { y1 += e.offset; y2 += e.offset; }
+    // 노드 원 가장자리에서 끝나게
+    const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, r = 24;
+    const sx = x1 + dx / L * r, sy = y1 + dy / L * r, ex = x2 - dx / L * (r + 4), ey = y2 - dy / L * (r + 4);
+    lines.push(`<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" class="${e.night ? 'night' : ''}" marker-end="url(#arr${e.night ? 'n' : ''})"/>`);
+    const t = e.lp ?? .5;
+    labels.push(h('div', { class: 'rel-label' + (e.night ? ' night' : ''), style: `left:${(sx + (ex - sx) * t) / W * 100}%;top:${(sy + (ey - sy) * t) / H * 100}%` }, lv.label));
+  });
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="rel-svg"><defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c9b56a"/></marker>
+    <marker id="arrn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e5484d"/></marker>
+    </defs>${lines.join('')}</svg>`;
+  const nodeImg = (id) => {
+    const src = portraitSrc(id === 'ju' ? 'ju' : id, '기본');
+    return src ? h('img', { src, alt: '' }) : h('span', { class: 'rel-q' }, id === 'kim' ? '?' : '오');
+  };
+  return h('div', { class: 'rel' },
+    h('div', { class: 'tl-head' }, `관계도 — 확인한 연결 ${found}/${R.edges.length}`),
+    h('div', { class: 'sub tl-help' }, '증거와 증언으로 확인된 관계만 선으로 그린다. 판정에는 영향이 없다.'),
+    h('div', { class: 'rel-box', html: svg },
+      R.nodes.map(n => h('div', { class: 'rel-node n-' + n.id, style: `left:${n.x}%;top:${n.y}%` },
+        nodeImg(n.id), h('span', null, n.name))),
+      labels));
+}
+
 export function bookView() {
   const r = S.ui.book || 'list';
   if (r.startsWith('sus:')) return interview(susById(r.slice(4)));
+  const tab = S.ui.bookTab || 'sus';
+  const tabs = [['sus', '취재 대상'], ['time', '타임라인'], ['map', '관계도'], ['log', '기록']];
+  let body;
+  if (tab === 'time') body = timelineView();
+  else if (tab === 'map') body = mapView();
+  else if (tab === 'log') body = memoLog();
+  else body = [
+    h('div', { class: 'rule' }, '질문 1회 = 1 소진. 루트 선택·전환은 무료. 추궁은 증거 1건 제시 = 1 소진.'),
+    h('div', { class: 'sec-title' }, '취재 대상'),
+    G.data.suspects.map(suspectCard)];
   return h('div', { class: 'app book' },
     h('div', { class: 'app-head' }, h('span', { class: 'back-sp' }), h('div', { class: 'app-title' }, '취재 수첩'), budgetPill()),
-    h('div', { class: 'book-body' },
-      h('div', { class: 'rule' }, '질문 1회 = 1 소진. 루트 선택·전환은 무료. 추궁은 증거 1건 제시 = 1 소진.'),
-      h('div', { class: 'sec-title' }, '취재 대상'),
-      G.data.suspects.map(suspectCard),
-      memoLog()));
+    h('div', { class: 'book-tabs' }, tabs.map(([id, name]) =>
+      h('button', { class: 'book-tab' + (tab === id ? ' on' : ''), onclick: () => { S.ui.bookTab = id; app.render(); } }, name))),
+    h('div', { class: 'book-body' }, body));
 }
 
 // ───────── 인터뷰 ─────────
@@ -99,7 +172,7 @@ function interview(sus) {
       h('div', { class: 'app-title' }, sus.name), budgetPill()),
     h('div', { class: 'iv-body' },
       h('div', { class: 'iv-top' },
-        portrait(sus, st.expr, 'lg'),
+        h('div', { class: 'iv-stage', style: `background-image:url(${placeSrc(sus.id)})` }, portrait(sus, st.expr, 'lg')),
         h('div', { class: 'iv-meta' },
           h('b', null, `${sus.name} (${sus.age})`), h('div', { class: 'sub' }, sus.role),
           h('div', { class: 'sub place' }, sus.place), h('div', { class: 'place-line' }, sus.placeLine))),
@@ -163,6 +236,7 @@ export function parkCombineCheck() {
   if (!st.done && st.partials.length >= I.combine.min) {
     st.done = true; st.expr = '자백';
     st.log.push({ kind: 'combine', a: I.combine.text });
+    sfx.confess();
     addTestimony(I.result);
     toast('증언 카드 확보: 박지영 전체 인정', 3200);
   }
@@ -182,6 +256,7 @@ function present(sus, ids) {
     if (!free && !spend(1)) { toast('남은 질문이 없다.'); return; }
     st.heard.push(p);
     if (!st.partials.includes(p)) st.partials.push(p);
+    addFlag(p, true);
     memo(`박지영 부분 자백 ${p}: ${I.partialLabels[p]}`, 'testi');
     st.log.push({ q: playerLine, a: opt.answer });
     if (st.expr === '기본') st.expr = '동요';
@@ -191,6 +266,7 @@ function present(sus, ids) {
     if (!spend(1)) { toast('남은 질문이 없다.'); return; }
     st.log.push({ q: playerLine, a: I.resultText });
     st.done = true; st.expr = '자백';
+    sfx.confess();
     addTestimony(I.result);
     toast(`증언 카드 확보: ${sus.name}`, 3000);
   } else if (opt && st.done) {
