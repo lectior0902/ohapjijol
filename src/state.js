@@ -33,6 +33,7 @@ export async function loadData() {
   const v = (typeof window !== 'undefined' && window.BUILD) ? '?v=' + window.BUILD : '';
   const res = await fetch('data/game.json' + v, { cache: 'no-cache' });
   G.data = await res.json();
+  G.pinSources = buildPinSources(G.data);
   S = fresh();
   try {
     let stale = false;
@@ -51,6 +52,21 @@ export async function loadData() {
     G.staleSave = stale;
   } catch (e) { /* 저장소 사용 불가: 새 게임 */ }
 }
+
+// 증거 한 장에 묶인 자료(문자·대화·메모·사진·검색 결과) 목록
+function buildPinSources(d) {
+  const src = {};
+  const add = (id, label) => { (src[id] = src[id] || []).includes(label) || src[id].push(label); };
+  const A = d.apps;
+  A.sms.threads.forEach(t => t.pinGroup && add(t.pinGroup, `문자 · ${t.contact}`));
+  A.telegram.groups.forEach(g => g.messages.forEach(m => m.pin && add(m.pin, '텔레그램 · 작업실 대화')));
+  A.telegram.dms.forEach(dm => dm.pinGroup && add(dm.pinGroup, `텔레그램 · ${dm.contact} DM`));
+  A.notes.forEach(n => n.pinGroup && add(n.pinGroup, `메모 「${n.title}」`));
+  A.gallery.forEach(g => g.pinGroup && add(g.pinGroup, g.album === '띵동캠' ? `띵동캠 ${g.ts.slice(6)}` : `사진 · ${g.title}`));
+  A.browser.keywords.forEach(k => k.results.forEach(r => r.pin && add(r.pin, `검색 「${k.label}」`)));
+  return src;
+}
+export const groupOf = (id) => (G.pinSources && G.pinSources[id]) || [];
 
 export function save() {
   S._v = SAVE_VERSION;
@@ -121,11 +137,13 @@ export function pin(id) {
   S.pinned.push(id);
   const ev = evidenceById(id);
   memo(`📌 ${id} ${ev.title}`, 'pin');
+  const grp = groupOf(id);
+  const together = grp.length > 1 ? `\n함께 묶인 자료 ${grp.length}개가 한 증거로 고정됐다: ${grp.join(', ')}` : '';
   if (ev.intuition) {
     memo(`기자의 직감: ${ev.intuition}`, 'intuition');
-    app.toast(`📌 ${ev.title}\n기자의 직감: ${ev.intuition}`, 4200);
+    app.toast(`📌 ${ev.title}${together}\n기자의 직감: ${ev.intuition}`, 5200);
   } else {
-    app.toast(`📌 증거함에 고정: ${ev.title}`);
+    app.toast(`📌 증거함에 고정: ${ev.title}${together}`, together ? 4600 : 2600);
   }
   return true;
 }

@@ -1,5 +1,5 @@
 // 폰 화면: 잠금화면, 홈, 앱 6종, 기사 페이지
-import { G, S, app, pin, addFlag, save } from './state.js';
+import { G, S, app, pin, addFlag, save, groupOf } from './state.js';
 import { h } from './ui.js';
 import { sceneSrc } from './pixel.js';
 import { sfx } from './sound.js';
@@ -18,12 +18,15 @@ function header(title, back, extra, cls = '') {
 export function pinBar(id) {
   const ev = G.data.evidence.find(e => e.id === id);
   const done = S.pinned.includes(id);
-  return h('div', { class: 'pinbar' + (done ? ' done' : '') },
+  const grp = groupOf(id);
+  const multi = grp.length > 1;
+  return h('div', { class: 'pinbar' + (done ? ' done' : '') + (multi ? ' multi' : '') },
     h('button', {
       class: 'pin-btn', disabled: done,
       onclick: () => { if (pin(id)) sfx.pin(); app.afterChange(); app.render(); },
-    }, done ? '📌 고정됨' : '📌 증거함에 고정'),
-    h('span', { class: 'pin-label' }, `${id} · ${ev.title}`));
+    }, done ? (multi ? `📌 ${id}에 함께 고정됨` : '📌 고정됨') : '📌 증거함에 고정'),
+    h('span', { class: 'pin-label' }, `${id} · ${ev.title}`,
+      multi ? h('span', { class: 'pin-group' }, `이 자료는 ${id}의 일부 · 함께 묶인 자료: ${grp.join(', ')}`) : null));
 }
 
 // ───────── 잠금화면 ─────────
