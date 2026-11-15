@@ -5,7 +5,7 @@ export const app = { render() {}, afterChange() {}, toast() {} };
 const KEY = 'ohapjijol-save';
 const OLD_KEYS = ['ohapjijol-save-v1'];
 // 판정·저장 구조가 바뀌면 올린다. 다른 버전의 기록은 새로 시작한다.
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export let S = null;
 
 function fresh() {

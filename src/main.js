@@ -2,7 +2,7 @@
 import { G, S, app, loadData, save, resetGame, remaining } from './state.js';
 import { h, toast, modal } from './ui.js';
 import { phoneView } from './phone.js';
-import { bookView } from './interview.js';
+import { bookView, myUnread } from './interview.js';
 import { evidenceView, endingView } from './ending.js';
 import { checkTriggers, resumePending } from './events.js';
 import { screenSrc } from './pixel.js';
@@ -49,7 +49,8 @@ function nav() {
         S.ui.tab = id; save(); render();
       },
     }, h('span', { class: 'tab-icon' }, icon,
-        id === 'book' ? h('i', { class: 'tab-badge' + (remaining() <= 5 ? ' low' : '') }, remaining()) : null),
+        id === 'book' ? h('i', { class: 'tab-badge' + (remaining() <= 5 ? ' low' : '') }, remaining()) : null,
+        id === 'book' && myUnread() ? h('i', { class: 'tab-dot' }) : null),
       h('span', null, name))));
 }
 

@@ -19,7 +19,7 @@ function scheduleDelivery(contact, text, delayMs) {
   setTimeout(() => {
     if (S.ending) return;
     sfx.message();
-    banner(`문자 · ${contact}`, text, () => { S.ui.tab = 'phone'; S.ui.phone = 'sms'; app.render(); });
+    banner(`내 휴대폰 · 문자 · ${contact}`, text, () => { S.ui.tab = 'book'; S.ui.book = 'inbox:' + contact; app.render(); });
     app.render();
   }, Math.max(0, delayMs));
 }
@@ -52,7 +52,7 @@ function sisterCheck() {
     sent.push(id);
     save();
     const m = G.data.sister.find(x => x.id === id);
-    queueSms('언니', m.text, 4000);
+    queueSms('임주희 (언니)', m.text, 4000);
     setTimeout(() => { sisterBusy = false; sisterCheck(); }, 20000);
   }
 }
@@ -105,7 +105,7 @@ function fireCall(who) {
       const ringing = () => {
         startRing();
         box.replaceChildren(
-          h('div', { class: 'call-label' }, '수신 전화'),
+          h('div', { class: 'call-label' }, '내 휴대폰 · 수신 전화'),
           h('div', { class: 'call-name' }, name),
           h('div', { class: 'call-sub' }, '휴대전화'),
           h('div', { class: 'call-actions' },
@@ -178,13 +178,13 @@ function fireEditor() {
         S.events.editorChoice = c.id;
         if (c.id === 1) { S.bonus += G.data.meta.budgetBonusMax; memo('국장: “2판까지다.” 질문 +2', 'event'); }
         if (c.id === 2) memo('국장: 자살 후속 기사를 내렸다. 그 자리는 공란.', 'event');
-        if (c.id !== 3) S.extraSms.push({ contact: D.from, from: '임주연', text: c.text, ts: '11-13 22:01', at: Date.now(), read: true });
+        if (c.id !== 3) S.extraSms.push({ contact: D.from, from: '나', text: c.text, ts: '11-13 22:01', at: Date.now(), read: true });
         if (c.id === 3) queueSms(D.from, c.reply, (c.delay || 10) * 1000);
         else queueSms(D.from, c.reply, 1200);
         close(); save(); app.render(); setTimeout(checkTriggers, 500);
       };
       return h('div', { class: 'editor' },
-        h('div', { class: 'call-label' }, '문자 · ' + D.from),
+        h('div', { class: 'call-label' }, '내 휴대폰 · 문자 · ' + D.from),
         h('div', { class: 'msg them' }, h('div', { class: 'msg-bubble' }, D.text)),
         h('div', { class: 'call-choices' }, D.choices.map((c, i) => {
           const ok = !c.requires || c.requires.some(r => pinned(r.split(':')[1]));

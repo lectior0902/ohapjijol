@@ -96,15 +96,54 @@ function mapView() {
       labels));
 }
 
+
+// ───────── 내 폰(기자에게 온 연락) ─────────
+export const myUnread = () => S.extraSms.filter(m => m.at <= Date.now() && !m.read && m.from !== '나').length;
+function myThreads() {
+  const now = Date.now(), map = new Map();
+  for (const m of S.extraSms) {
+    if (m.at > now) continue;
+    if (!map.has(m.contact)) map.set(m.contact, []);
+    map.get(m.contact).push(m);
+  }
+  return [...map.entries()];
+}
+function inboxView() {
+  const threads = myThreads();
+  if (!threads.length) return h('div', { class: 'empty' }, '아직 내 휴대폰으로 온 연락이 없다.');
+  return h('div', { class: 'my-list' },
+    h('div', { class: 'sub tl-help' }, '기자인 나에게 온 연락이다. 주연 씨의 폰과는 별개.'),
+    threads.map(([who, ms]) => {
+      const last = ms[ms.length - 1], unread = ms.some(m => !m.read && m.from !== '나');
+      return h('button', { class: 'my-row' + (unread ? ' unread' : ''), onclick: () => goBook('inbox:' + who) },
+        h('span', { class: 'my-av' }, who.slice(0, 1)),
+        h('span', { class: 'my-main' }, h('b', null, who), h('span', { class: 'sub' }, last.text)),
+        unread ? h('i', { class: 'my-dot' }) : null);
+    }));
+}
+function inboxThread(who) {
+  const ms = S.extraSms.filter(m => m.contact === who && m.at <= Date.now());
+  ms.forEach(m => { m.read = true; });
+  save();
+  return h('div', { class: 'app book my-phone' },
+    h('div', { class: 'app-head' },
+      h('button', { class: 'back', onclick: () => { S.ui.bookTab = 'inbox'; goBook('list'); }, 'aria-label': '뒤로' }, '‹'),
+      h('div', { class: 'app-title' }, who), h('span', { class: 'my-tag' }, '내 휴대폰')),
+    h('div', { class: 'my-chat' }, ms.map(m =>
+      h('div', { class: 'my-msg ' + (m.from === '나' ? 'me' : 'them') }, h('div', { class: 'my-bubble' }, m.text)))));
+}
+
 export function bookView() {
   const r = S.ui.book || 'list';
   if (r.startsWith('sus:')) return interview(susById(r.slice(4)));
+  if (r.startsWith('inbox:')) return inboxThread(r.slice(6));
   const tab = S.ui.bookTab || 'sus';
-  const tabs = [['sus', '취재 대상'], ['time', '타임라인'], ['map', '관계도'], ['log', '기록']];
+  const tabs = [['sus', '취재 대상'], ['time', '타임라인'], ['map', '관계도'], ['inbox', '내 폰'], ['log', '기록']];
   let body;
   if (tab === 'time') body = timelineView();
   else if (tab === 'map') body = mapView();
   else if (tab === 'log') body = memoLog();
+  else if (tab === 'inbox') body = inboxView();
   else body = [
     h('div', { class: 'rule' }, '질문 1회 = 1 소진. 루트 선택·전환은 무료. 추궁은 증거 1건 제시 = 1 소진.'),
     h('div', { class: 'sec-title' }, '취재 대상'),
@@ -112,7 +151,8 @@ export function bookView() {
   return h('div', { class: 'app book' },
     h('div', { class: 'app-head' }, h('span', { class: 'back-sp' }), h('div', { class: 'app-title' }, '취재 수첩'), budgetPill()),
     h('div', { class: 'book-tabs' }, tabs.map(([id, name]) =>
-      h('button', { class: 'book-tab' + (tab === id ? ' on' : ''), onclick: () => { S.ui.bookTab = id; app.render(); } }, name))),
+      h('button', { class: 'book-tab' + (tab === id ? ' on' : ''), onclick: () => { S.ui.bookTab = id; app.render(); } }, name,
+        id === 'inbox' && myUnread() ? h('i', { class: 'my-dot' }) : null))),
     h('div', { class: 'book-body' }, body));
 }
 

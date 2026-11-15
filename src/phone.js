@@ -106,20 +106,11 @@ export function home() {
 }
 
 // ───────── 메시지(문자) ─────────
-function deliveredExtra() {
-  const now = Date.now();
-  return S.extraSms.filter(m => m.at <= now);
-}
+// 게임 중 새로 오는 연락은 기자의 '내 휴대폰'(취재 수첩 > 내 폰)으로 간다. 주연의 폰에는 사건 당시 기록만.
 function smsThreads() {
-  const base = G.data.apps.sms.threads.map(t => ({ ...t, messages: [...t.messages] }));
-  for (const m of deliveredExtra()) {
-    let t = base.find(x => x.contact === m.contact);
-    if (!t) { t = { contact: m.contact, messages: [], extra: true }; base.unshift(t); }
-    t.messages.push(m);
-  }
-  return base;
+  return G.data.apps.sms.threads.map(t => ({ ...t, messages: [...t.messages] }));
 }
-function smsUnread() { return deliveredExtra().filter(m => !m.read).length; }
+function smsUnread() { return 0; }
 
 function bubble(m, opts = {}) {
   const mine = m.from === ME;
@@ -173,8 +164,6 @@ export function sms(route) {
   const m = route.match(/^sms:(\d+)$/);
   if (m) {
     const t = threads[+m[1]];
-    S.extraSms.forEach(x => { if (x.contact === t.contact && x.at <= Date.now()) x.read = true; });
-    save();
     const out = [];
     let day = null;
     for (const x of t.messages) {
