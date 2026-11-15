@@ -3,7 +3,7 @@ import { G, S, app, loadData, save, resetGame, remaining } from './state.js';
 import { h, toast, modal } from './ui.js';
 import { phoneView } from './phone.js';
 import { bookView, myUnread } from './interview.js';
-import { evidenceView, endingView } from './ending.js';
+import { evidenceView, endingView, collectionView, seenEndings } from './ending.js';
 import { checkTriggers, resumePending } from './events.js';
 import { screenSrc } from './pixel.js';
 import { isMuted, setMuted, sfx } from './sound.js';
@@ -31,7 +31,8 @@ function introView() {
     h('button', { class: 'primary big', onclick: () => {
       S.started = true; S.ui.tab = 'phone'; save(); render();
     } }, '폰을 받는다'),
-    h('div', { class: 'sub center' }, `플레이타임 ${M.playtime} · 진행은 이 브라우저에 자동 저장됩니다`));
+    h('div', { class: 'sub center' }, `플레이타임 ${M.playtime} · 진행은 이 브라우저에 자동 저장됩니다`),
+    seenEndings().length ? collectionView(null) : null);
 }
 
 function nav() {

@@ -58,12 +58,16 @@ function sisterCheck() {
 }
 
 let checking = false;
+let showing = null;   // 지금 화면에 띄우는 중인 이벤트('call' | 'editor')
 export function checkTriggers() {
   if (checking || !S.started || S.ending) return;
   if (isModalOpen()) { setTimeout(checkTriggers, 700); return; }
   checking = true;
   sisterCheck();
   try {
+    // 새로고침·앱 전환으로 답하지 못한 이벤트는 다시 띄운다
+    if (S.events.call && S.events.callChoice == null && showing !== 'call') { showCall(S.events.call); return; }
+    if (S.events.editor && S.events.editorChoice == null && showing !== 'editor') { showEditor(); return; }
     if (!S.events.forensic && (pinned('E08') || pinned('E12') || S.spent >= 6)) {
       fireForensic();
     }
@@ -93,14 +97,19 @@ function fireForensic() {
 
 // ── 5.2 기습 착신 전화 ──
 function fireCall(who) {
-  const C = E().call[who];
-  const name = who === 'park' ? '박지영' : '성지인';
   S.events.call = who;
   save();
+  showCall(who);
+}
+
+function showCall(who) {
+  const C = E().call[who];
+  const name = who === 'park' ? '박지영' : '성지인';
+  showing = 'call';
   setTimeout(() => {
     modal((close) => {
       const box = h('div', { class: 'call' });
-      const finish = () => { close(); save(); app.render(); setTimeout(checkTriggers, 500); };
+      const finish = () => { showing = null; close(); save(); app.render(); setTimeout(checkTriggers, 500); };
 
       const ringing = () => {
         startRing();
@@ -171,6 +180,12 @@ function fireEditor() {
   S.events.editor = true;
   S.extraSms.push({ contact: D.from, from: D.from, text: D.text, ts: '11-13 22:00', at: Date.now(), read: true });
   save();
+  showEditor();
+}
+
+function showEditor() {
+  const D = E().editor;
+  showing = 'editor';
   setTimeout(() => {
     sfx.message();
     modal((close) => {
@@ -181,6 +196,7 @@ function fireEditor() {
         if (c.id !== 3) S.extraSms.push({ contact: D.from, from: '나', text: c.text, ts: '11-13 22:01', at: Date.now(), read: true });
         if (c.id === 3) queueSms(D.from, c.reply, (c.delay || 10) * 1000);
         else queueSms(D.from, c.reply, 1200);
+        showing = null;
         close(); save(); app.render(); setTimeout(checkTriggers, 500);
       };
       return h('div', { class: 'editor' },

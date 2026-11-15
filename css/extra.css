@@ -120,7 +120,7 @@
 .stage-expr { position: absolute; left: 8px; bottom: 8px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 6px; }
 .rel-node img { object-fit: cover; }
 .frames { display: flex; flex-direction: column; gap: 6px; }
-.lock, .home, .lock.keypad-mode { background-image: linear-gradient(rgba(10,10,16,.35), rgba(10,10,16,.7)), url(../assets/pixel/screen_lockscreen.png?v=202611151428);
+.lock, .home, .lock.keypad-mode { background-image: linear-gradient(rgba(10,10,16,.35), rgba(10,10,16,.7)), url(../assets/pixel/screen_lockscreen.png?v=202611151442);
   background-size: 100% auto; background-repeat: no-repeat; background-position: center top; background-color: #1d2130; image-rendering: pixelated; }
 .intro-key { width: calc(100% + 52px); margin: -36px -26px 4px; display: block; image-rendering: pixelated; aspect-ratio: 240 / 134; object-fit: cover;
   mask-image: linear-gradient(#000 70%, transparent); -webkit-mask-image: linear-gradient(#000 70%, transparent); }
@@ -153,3 +153,12 @@
 .my-bubble { max-width: 80%; padding: 8px 12px; border-radius: 16px; font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; }
 .my-msg.them .my-bubble { background: #fff; border-bottom-left-radius: 5px; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
 .my-msg.me .my-bubble { background: #e8c547; color: #1a1500; border-bottom-right-radius: 5px; }
+
+/* 엔딩 수집 */
+.collection { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.coll-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.coll-head b { color: var(--accent); }
+.coll-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.coll-chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px dashed #4a4d55; color: #6b6e76; }
+.coll-chip.on { border-style: solid; border-color: #6a5520; color: #e9dfb8; background: rgba(232,197,71,.08); }
+.coll-chip.now { border-color: var(--accent); color: var(--accent); font-weight: 700; }

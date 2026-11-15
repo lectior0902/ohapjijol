@@ -102,6 +102,30 @@ function confirmSubmit() {
       h('button', { class: 'primary', onclick: () => { close(); submit(); } }, '송고'))));
 }
 
+
+// ───────── 엔딩 수집 (진행 기록과 별도로 보관: 처음부터 다시 해도 남는다) ─────────
+const EKEY = 'ohapjijol-endings';
+export const ENDING_KINDS = ['true', 'partial', 'bad1', 'bad3', 'bad4'];
+export function seenEndings() {
+  try { return (JSON.parse(localStorage.getItem(EKEY)) || []).filter(k => ENDING_KINDS.includes(k)); } catch (e) { return []; }
+}
+function recordEnding(kind) {
+  const s = seenEndings();
+  if (!s.includes(kind)) { s.push(kind); try { localStorage.setItem(EKEY, JSON.stringify(s)); } catch (e) { /* 무시 */ } }
+}
+export function endingName(k) {
+  const EN = G.data.endings;
+  return k === 'true' ? EN.true.name : k === 'partial' ? EN.partial.name : EN.bad[k.slice(3)].name;
+}
+export function collectionView(current) {
+  const seen = seenEndings();
+  return h('div', { class: 'collection' },
+    h('div', { class: 'coll-head' }, h('span', null, '수집한 엔딩'), h('b', null, `${seen.length} / ${ENDING_KINDS.length}`)),
+    h('div', { class: 'coll-chips' }, ENDING_KINDS.map(k =>
+      h('span', { class: 'coll-chip' + (seen.includes(k) ? ' on' : '') + (k === current ? ' now' : '') },
+        seen.includes(k) ? endingName(k).replace(' 엔딩', '').replace('배드 · ', '배드 · ') : '???'))));
+}
+
 export function judge(D) {
   const F = G.data.form;
   const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
@@ -128,6 +152,7 @@ export function judge(D) {
 function submit() {
   const r = judge(S.ui.form);
   S.ending = r;
+  recordEnding(r.kind);
   sfx.print();
   save(); app.render();
 }
@@ -144,6 +169,7 @@ export function endingView() {
     e = (n === '1' && S.events.editorChoice === 2) ? EN.bad['1blank'] : EN.bad[n];
   }
   const delayed = r.kind.startsWith('bad') && S.events.editorChoice === 1;
+  recordEnding(r.kind);
   const check = (ok, label) => h('div', { class: 'chk' + (ok ? ' ok' : '') }, (ok ? '✓ ' : '✗ ') + label);
 
   const share = async () => {
@@ -173,6 +199,7 @@ export function endingView() {
       t))),
     delayed ? h('div', { class: 'epi extra' }, EN.bad.delayedLine) : null,
     e.closing ? h('div', { class: 'closing' }, e.closing) : null,
+    collectionView(r.kind),
     h('div', { class: 'review' },
       h('div', { class: 'sec-title' }, '데스크 검토'),
       check(r.ok1, '① 사인'), check(r.ok2, '② 구조'),
