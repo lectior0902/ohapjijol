@@ -32,7 +32,8 @@ function introView() {
       S.started = true; S.ui.tab = 'phone'; save(); render();
     } }, '폰을 받는다'),
     h('div', { class: 'sub center' }, `플레이타임 ${M.playtime} · 진행은 이 브라우저에 자동 저장됩니다`),
-    seenEndings().length ? collectionView(null) : null);
+    seenEndings().length ? collectionView(null) : null,
+    h('div', { class: 'copyright' }, '© 2026 lectior0902 · 플레이는 자유, 무단 전재 금지'));
 }
 
 function nav() {
