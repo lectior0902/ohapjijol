@@ -59,5 +59,5 @@ export function portrait(sus, expr, size = 'lg') {
   const [c1, c2, c3] = sus.palette;
   return h('div', { class: `portrait ${size}`, style: `--c1:${c1};--c2:${c2};--c3:${c3}` },
     h('img', { class: 'portrait-img', src: size === 'lg' ? portraitSrc(sus.id, expr) : (avatarSrc(sus.id) || portraitSrc(sus.id, expr)), alt: `${sus.name} · ${expr}` }),
-    size === 'lg' ? h('div', { class: 'portrait-expr' }, `${expr} · ${sus.expressions[expr]}`) : null);
+    null);
 }
