@@ -10,6 +10,16 @@
 python -m http.server 8000
 ```
 
+## 배포
+
+`main`에 푸시하면 GitHub Pages가 자동으로 배포한다. 푸시 전에 빌드 번호를 올린다.
+
+```
+python tools/bump_version.py
+```
+
+JS·CSS·이미지·데이터 주소에 `?v=빌드번호`가 붙어, 플레이어 브라우저가 예전 파일을 쓰지 않는다. 저장 형식이나 판정 구조가 바뀌면 `src/state.js`의 `SAVE_VERSION`도 올린다(이전 기록은 안내와 함께 새로 시작된다).
+
 ## 구조
 
 ```

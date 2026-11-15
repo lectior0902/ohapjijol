@@ -119,6 +119,7 @@ async function boot() {
     el._st = setTimeout(() => el.classList.remove('scrolling'), 900);
   }, true);
   render();
+  if (G.staleSave) toast('게임이 업데이트되어 이전 진행 기록은 처음부터 다시 시작합니다.', 4200);
   resumePending();
   checkTriggers();
 }

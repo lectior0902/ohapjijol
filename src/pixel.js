@@ -180,6 +180,7 @@ const DRAW = {
 
 // ───────────────── 완성 도트 에셋(assets/pixel) ─────────────────
 const A = 'assets/pixel/';
+const V = (typeof window !== 'undefined' && window.BUILD) ? '?v=' + window.BUILD : '';
 const WHO = { ju: 'juyeon', park: 'jiyoung', chae: 'chaeun', sung: 'jiin', jung: 'gayeon' };
 const EXPR = { '기본': 'base', '동요': 'shaken', '자백': 'confess' };
 const HAVE_EXPR = { ju: ['base', 'shaken'] };   // 임주연은 기본·동요만
@@ -188,15 +189,15 @@ const SCENE_FILE = {
   security: 'scene_g5_security_selfie', club: 'scene_g7_school_photo', bookshop: 'scene_g10_bookstore_opening', sunrise: 'scene_g12_sunrise',
 };
 const PLACE_FILE = { park: 'bg_interview_park', chae: 'bg_interview_chaeun', sung: 'bg_interview_sung', jung: 'bg_interview_gayeon' };
-export const screenSrc = (name) => A + 'screen_' + name + '.png';
-export function avatarSrc(id) { return WHO[id] ? A + 'avatar_' + WHO[id] + '.png' : null; }
+export const screenSrc = (name) => A + 'screen_' + name + '.png' + V;
+export function avatarSrc(id) { return WHO[id] ? A + 'avatar_' + WHO[id] + '.png' + V : null; }
 
 export function portraitSrc(id, expr = '기본') {
   if (WHO[id]) {
     let e = EXPR[expr] || 'base';
     const have = HAVE_EXPR[id];
     if (have && !have.includes(e)) e = have.includes('shaken') && e === 'confess' ? 'shaken' : 'base';
-    return A + 'portrait_' + WHO[id] + '_' + e + '.png';
+    return A + 'portrait_' + WHO[id] + '_' + e + '.png' + V;
   }
   return codePortrait(id, expr);
 }
@@ -316,7 +317,7 @@ const SCENES = {
 };
 
 export function sceneSrc(id) {
-  if (SCENE_FILE[id]) return A + SCENE_FILE[id] + '.png';
+  if (SCENE_FILE[id]) return A + SCENE_FILE[id] + '.png' + V;
   const s = SCENES[id];
   if (!s) return null;
   return make('s:' + id, s[0], s[1], s[2]);
@@ -360,7 +361,7 @@ const PLACES = {
 };
 
 export function placeSrc(id) {
-  if (PLACE_FILE[id]) return A + PLACE_FILE[id] + '.png';
+  if (PLACE_FILE[id]) return A + PLACE_FILE[id] + '.png' + V;
   const f = PLACES[id];
   if (!f) return null;
   return make('bg:' + id, 120, 48, f);

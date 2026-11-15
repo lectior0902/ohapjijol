@@ -2,7 +2,10 @@
 export const G = { data: null };
 export const app = { render() {}, afterChange() {}, toast() {} };
 
-const KEY = 'ohapjijol-save-v1';
+const KEY = 'ohapjijol-save';
+const OLD_KEYS = ['ohapjijol-save-v1'];
+// 판정·저장 구조가 바뀌면 올린다. 다른 버전의 기록은 새로 시작한다.
+export const SAVE_VERSION = 3;
 export let S = null;
 
 function fresh() {
@@ -27,20 +30,30 @@ function fresh() {
 }
 
 export async function loadData() {
-  const res = await fetch('data/game.json', { cache: 'no-cache' });
+  const v = (typeof window !== 'undefined' && window.BUILD) ? '?v=' + window.BUILD : '';
+  const res = await fetch('data/game.json' + v, { cache: 'no-cache' });
   G.data = await res.json();
   S = fresh();
   try {
+    let stale = false;
+    for (const k of OLD_KEYS) if (localStorage.getItem(k)) { localStorage.removeItem(k); stale = true; }
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      S = Object.assign(fresh(), saved);
-      S.ui.overlay = null;
+      if (saved && saved._v === SAVE_VERSION) {
+        S = Object.assign(fresh(), saved);
+        S.ui.overlay = null;
+      } else {
+        localStorage.removeItem(KEY);
+        stale = true;
+      }
     }
+    G.staleSave = stale;
   } catch (e) { /* 저장소 사용 불가: 새 게임 */ }
 }
 
 export function save() {
+  S._v = SAVE_VERSION;
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 무시 */ }
 }
 
